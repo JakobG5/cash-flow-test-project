@@ -1,13 +1,12 @@
 package server
 
 import (
+	logger "cash-flow-financial/internal/managers/loggermanager"
+	"cash-flow-financial/internal/models"
 	"context"
 	"fmt"
 	"net/http"
 	"time"
-
-	"cash-flow-financial/internal/config"
-	"cash-flow-financial/internal/logger"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -16,11 +15,11 @@ import (
 
 type Server struct {
 	echo   *echo.Echo
-	config *config.Config
+	config *models.Config
 	logger *logger.Logger
 }
 
-func NewServer(cfg *config.Config, log *logger.Logger) *Server {
+func NewServer(cfg *models.Config, log *logger.Logger) *Server {
 	e := echo.New()
 
 	e.Use(middleware.Recover())

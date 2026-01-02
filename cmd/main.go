@@ -6,20 +6,20 @@ import (
 	"os/signal"
 	"syscall"
 
-	"cash-flow-financial/internal/config"
-	"cash-flow-financial/internal/logger"
-	"cash-flow-financial/internal/server"
+	"cash-flow-financial/internal/managers/configmanager"
+	"cash-flow-financial/internal/managers/loggermanager"
+	"cash-flow-financial/server"
 
 	"go.uber.org/zap"
 )
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := configmanager.Load()
 	if err != nil {
 		panic("Failed to load configuration: " + err.Error())
 	}
 
-	log := logger.NewLogger(cfg.Logger.Level)
+	log := loggermanager.NewLogger(cfg.Logger.Level)
 
 	srv := server.NewServer(cfg, log)
 
