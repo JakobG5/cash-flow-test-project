@@ -1,7 +1,7 @@
 -- name: CreateMerchant :one
-INSERT INTO merchants (name, email)
-VALUES ($1, $2)
-RETURNING id, name, email, status, created_at, updated_at;
+INSERT INTO merchants (merchant_id, name, email)
+VALUES ($1, $2, $3)
+RETURNING id, merchant_id, name, email, status, created_at, updated_at;
 
 -- name: GetMerchantByAPIKey :one
 SELECT m.id, m.name, m.email, m.status, m.created_at, m.updated_at
@@ -13,6 +13,13 @@ WHERE mak.api_key = $1 AND mak.status = 'active' AND m.status = 'active';
 SELECT id, name, email, status, created_at, updated_at
 FROM merchants
 WHERE id = $1;
+
+-- name: GetMerchantWithAPIKey :one
+SELECT m.id, m.merchant_id, m.name, m.email, m.status, m.created_at, m.updated_at,
+       mak.api_key, mak.status as api_key_status, mak.created_at as api_key_created_at
+FROM merchants m
+JOIN merchant_api_keys mak ON m.id = mak.merchant_id
+WHERE m.merchant_id = $1 AND mak.status = 'active';
 
 -- name: CreateMerchantAPIKey :one
 INSERT INTO merchant_api_keys (merchant_id, api_key, secret_key)

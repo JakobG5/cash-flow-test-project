@@ -8,11 +8,14 @@ CREATE TYPE event_type AS ENUM ('created', 'processing', 'completed', 'failed', 
 
 CREATE TABLE merchants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    merchant_id VARCHAR(20) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     status merchant_status DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(email),
+    UNIQUE(merchant_id)
 );
 
 CREATE TABLE merchant_api_keys (

@@ -42,7 +42,7 @@ func main() {
 	queries := db.New(dbManager.GetDB())
 
 	checkoutService := checkoutservice.NewCheckoutService(queries, logger, rabbitManager)
-	accountService := accountservice.NewAccountService(queries, logger)
+	accountService := accountservice.NewAccountService(queries, logger, cfg)
 	transactionService := transactionservice.NewTransactionService(queries, logger)
 
 	srv := server.NewServer(cfg, logger, checkoutService, accountService, transactionService, dbManager, rabbitManager)

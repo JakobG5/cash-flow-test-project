@@ -16,18 +16,20 @@ func Load() (*models.Config, error) {
 
 	viper.SetDefault("LOG_LEVEL", "info")
 
-	viper.SetDefault("DB_HOST", "db.bijzklfgksouguyoxijm.supabase.co")
+	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", "5432")
-	viper.SetDefault("DB_USER", "postgres")
-	viper.SetDefault("DB_PASSWORD", "Z]g'Wsk3Wc5c63t")
-	viper.SetDefault("DB_NAME", "postgres")
-	viper.SetDefault("DB_SSL_MODE", "require")
+	viper.SetDefault("DB_USER", "cashflow_user")
+	viper.SetDefault("DB_PASSWORD", "cashflow_pass")
+	viper.SetDefault("DB_NAME", "cashflow_dev")
+	viper.SetDefault("DB_SSL_MODE", "disable")
 
 	viper.SetDefault("RABBITMQ_HOST", "localhost")
 	viper.SetDefault("RABBITMQ_PORT", "5672")
 	viper.SetDefault("RABBITMQ_USER", "guest")
 	viper.SetDefault("RABBITMQ_PASSWORD", "guest")
 	viper.SetDefault("RABBITMQ_VHOST", "/")
+
+	viper.SetDefault("API_KEY_HASH_KEY", "cashflow_test_2024_secure_key_123456789")
 
 	viper.AutomaticEnv()
 
@@ -53,12 +55,12 @@ func Load() (*models.Config, error) {
 			Level: strings.ToLower(getEnvAsString("LOG_LEVEL", "info")),
 		},
 		Database: models.DatabaseConfig{
-			Host:     getEnvAsString("DB_HOST", "db.bijzklfgksouguyoxijm.supabase.co"),
+			Host:     getEnvAsString("DB_HOST", "localhost"),
 			Port:     getEnvAsString("DB_PORT", "5432"),
-			User:     getEnvAsString("DB_USER", "postgres"),
-			Password: getEnvAsString("DB_PASSWORD", "Z]g'Wsk3Wc5c63t"),
-			DBName:   getEnvAsString("DB_NAME", "postgres"),
-			SSLMode:  getEnvAsString("DB_SSL_MODE", "require"),
+			User:     getEnvAsString("DB_USER", "cashflow_user"),
+			Password: getEnvAsString("DB_PASSWORD", "cashflow_pass"),
+			DBName:   getEnvAsString("DB_NAME", "cashflow_dev"),
+			SSLMode:  getEnvAsString("DB_SSL_MODE", "disable"),
 		},
 		RabbitMQ: models.RabbitMQConfig{
 			Host:     getEnvAsString("RABBITMQ_HOST", "localhost"),
@@ -67,6 +69,7 @@ func Load() (*models.Config, error) {
 			Password: getEnvAsString("RABBITMQ_PASSWORD", "guest"),
 			VHost:    getEnvAsString("RABBITMQ_VHOST", "/"),
 		},
+		APIKeyHash: getEnvAsString("API_KEY_HASH_KEY", "cashflow_test_2024_secure_key_123456789"),
 	}
 
 	log.Printf("Configuration loaded successfully. Server will run on port %s", config.Server.Port)

@@ -7,14 +7,14 @@ import (
 )
 
 type AccountHandler struct {
-	ACCOUNTSERVICE accountservice.IAccountService
+	accountService accountservice.IAccountService
 	config         *models.Config
 	logger         *loggermanager.Logger
 }
 
 func NewAccountHandler(accountService accountservice.IAccountService, config *models.Config, logger *loggermanager.Logger) *AccountHandler {
 	return &AccountHandler{
-		ACCOUNTSERVICE: accountService,
+		accountService: accountService,
 		config:         config,
 		logger:         logger,
 	}

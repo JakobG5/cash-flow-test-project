@@ -450,12 +450,13 @@ func AllTransactionStatusValues() []TransactionStatus {
 }
 
 type Merchant struct {
-	ID        uuid.UUID          `db:"id" json:"id"`
-	Name      string             `db:"name" json:"name"`
-	Email     string             `db:"email" json:"email"`
-	Status    NullMerchantStatus `db:"status" json:"status"`
-	CreatedAt sql.NullTime       `db:"created_at" json:"created_at"`
-	UpdatedAt sql.NullTime       `db:"updated_at" json:"updated_at"`
+	ID         uuid.UUID          `db:"id" json:"id"`
+	MerchantID string             `db:"merchant_id" json:"merchant_id"`
+	Name       string             `db:"name" json:"name"`
+	Email      string             `db:"email" json:"email"`
+	Status     NullMerchantStatus `db:"status" json:"status"`
+	CreatedAt  sql.NullTime       `db:"created_at" json:"created_at"`
+	UpdatedAt  sql.NullTime       `db:"updated_at" json:"updated_at"`
 }
 
 type MerchantApiKey struct {
