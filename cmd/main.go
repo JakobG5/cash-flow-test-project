@@ -6,8 +6,14 @@ import (
 	"os/signal"
 	"syscall"
 
+	"cash-flow-financial/internal/db"
 	"cash-flow-financial/internal/managers/configmanager"
+	"cash-flow-financial/internal/managers/dbmanager"
 	"cash-flow-financial/internal/managers/loggermanager"
+	"cash-flow-financial/internal/managers/rabbitmqmanager"
+	accountservice "cash-flow-financial/internal/services/account-service"
+	checkoutservice "cash-flow-financial/internal/services/checkout-service"
+	transactionservice "cash-flow-financial/internal/services/transaction-service"
 	"cash-flow-financial/server"
 
 	"go.uber.org/zap"
@@ -19,14 +25,32 @@ func main() {
 		panic("Failed to load configuration: " + err.Error())
 	}
 
-	log := loggermanager.NewLogger(cfg.Logger.Level)
+	logger := loggermanager.NewLogger(cfg.Logger.Level)
 
-	srv := server.NewServer(cfg, log)
+	dbManager, err := dbmanager.NewDBManager(&cfg.Database)
+	if err != nil {
+		panic("Failed to initialize database manager: " + err.Error())
+	}
+	defer dbManager.Close()
+
+	rabbitManager, err := rabbitmqmanager.NewRabbitMQManager(&cfg.RabbitMQ)
+	if err != nil {
+		panic("Failed to initialize RabbitMQ manager: " + err.Error())
+	}
+	defer rabbitManager.Close()
+
+	queries := db.New(dbManager.GetDB())
+
+	checkoutService := checkoutservice.NewCheckoutService(queries, logger, rabbitManager)
+	accountService := accountservice.NewAccountService(queries, logger)
+	transactionService := transactionservice.NewTransactionService(queries, logger)
+
+	srv := server.NewServer(cfg, logger, checkoutService, accountService, transactionService, dbManager, rabbitManager)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	if err := srv.Start(ctx); err != nil {
-		log.Fatal("Server failed to start", zap.Error(err))
+		logger.Fatal("Server failed to start", zap.Error(err))
 	}
 }

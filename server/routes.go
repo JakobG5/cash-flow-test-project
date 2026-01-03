@@ -1,16 +1,16 @@
 package server
 
 import (
-	"github.com/labstack/echo/v4"
+	"cash-flow-financial/server/handlers/account"
+	"cash-flow-financial/server/handlers/checkout"
+	"cash-flow-financial/server/handlers/transaction"
 )
 
-func SetupRoutes(e *echo.Echo) {
-
-	e.GET("/health", healthCheckHandler)
-
-	v1 := e.Group("/api/v1")
-	{
-		v1.GET("/", helloHandler)
-
-	}
+func (s *Server) setupRoutes() {
+	checkoutHandler := checkout.NewCheckoutHandler(s.ICHECKOUTSERVICE, s.config, s.logger, s.IRabbitMQManager)
+	accountHandler := account.NewAccountHandler(s.IACCOUNTSERVICE, s.config, s.logger)
+	transactionHandler := transaction.NewTransactionHandler(s.ITRANSACTIONSERVICE, s.config, s.logger)
+	s.echo.POST("/checkout/create-intent", checkoutHandler.CreateIntent)
+	s.echo.POST("/account/create-merchant", accountHandler.CreateMerchantAPI)
+	s.echo.GET("/transaction/get-payment-status", transactionHandler.GetTransaction)
 }

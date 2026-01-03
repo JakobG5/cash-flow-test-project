@@ -61,7 +61,7 @@ func (dm *DBManager) Close() error {
 }
 
 func (dm *DBManager) IsHealthy() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	if err := dm.db.PingContext(ctx); err != nil {

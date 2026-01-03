@@ -1,8 +1,13 @@
 package server
 
 import (
+	"cash-flow-financial/internal/managers/dbmanager"
 	logger "cash-flow-financial/internal/managers/loggermanager"
+	"cash-flow-financial/internal/managers/rabbitmqmanager"
 	"cash-flow-financial/internal/models"
+	accountservice "cash-flow-financial/internal/services/account-service"
+	checkoutservice "cash-flow-financial/internal/services/checkout-service"
+	transactionservice "cash-flow-financial/internal/services/transaction-service"
 	"context"
 	"fmt"
 	"net/http"
@@ -14,24 +19,36 @@ import (
 )
 
 type Server struct {
-	echo   *echo.Echo
-	config *models.Config
-	logger *logger.Logger
+	IDBManager          dbmanager.IDBManager
+	IRabbitMQManager    rabbitmqmanager.IRabbitMQManager
+	ICHECKOUTSERVICE    checkoutservice.ICheckoutService
+	IACCOUNTSERVICE     accountservice.IAccountService
+	ITRANSACTIONSERVICE transactionservice.ITransactionService
+	echo                *echo.Echo
+	config              *models.Config
+	logger              *logger.Logger
 }
 
-func NewServer(cfg *models.Config, log *logger.Logger) *Server {
+func NewServer(cfg *models.Config, log *logger.Logger, checkoutSvc checkoutservice.ICheckoutService, accountSvc accountservice.IAccountService, transactionSvc transactionservice.ITransactionService, dbMgr dbmanager.IDBManager, rabbitMgr rabbitmqmanager.IRabbitMQManager) *Server {
 	e := echo.New()
 
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
-	SetupRoutes(e)
-
-	return &Server{
-		echo:   e,
-		config: cfg,
-		logger: log,
+	server := &Server{
+		IDBManager:          dbMgr,
+		IRabbitMQManager:    rabbitMgr,
+		ICHECKOUTSERVICE:    checkoutSvc,
+		IACCOUNTSERVICE:     accountSvc,
+		ITRANSACTIONSERVICE: transactionSvc,
+		echo:                e,
+		config:              cfg,
+		logger:              log,
 	}
+
+	server.setupRoutes()
+
+	return server
 }
 
 func (s *Server) Start(ctx context.Context) error {
