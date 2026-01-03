@@ -480,18 +480,19 @@ type MerchantBalance struct {
 }
 
 type PaymentIntent struct {
-	ID            uuid.UUID             `db:"id" json:"id"`
-	TransactionID string                `db:"transaction_id" json:"transaction_id"`
-	MerchantID    uuid.UUID             `db:"merchant_id" json:"merchant_id"`
-	Amount        string                `db:"amount" json:"amount"`
-	Currency      CurrencyType          `db:"currency" json:"currency"`
-	Reference     string                `db:"reference" json:"reference"`
-	CallbackUrl   string                `db:"callback_url" json:"callback_url"`
-	Status        NullPaymentStatus     `db:"status" json:"status"`
-	Metadata      pqtype.NullRawMessage `db:"metadata" json:"metadata"`
-	CreatedAt     sql.NullTime          `db:"created_at" json:"created_at"`
-	UpdatedAt     sql.NullTime          `db:"updated_at" json:"updated_at"`
-	ExpiresAt     sql.NullTime          `db:"expires_at" json:"expires_at"`
+	ID              uuid.UUID             `db:"id" json:"id"`
+	PaymentIntentID string                `db:"payment_intent_id" json:"payment_intent_id"`
+	MerchantID      uuid.UUID             `db:"merchant_id" json:"merchant_id"`
+	Amount          string                `db:"amount" json:"amount"`
+	Currency        string                `db:"currency" json:"currency"`
+	Status          NullPaymentStatus     `db:"status" json:"status"`
+	Description     sql.NullString        `db:"description" json:"description"`
+	CallbackUrl     string                `db:"callback_url" json:"callback_url"`
+	Nonce           string                `db:"nonce" json:"nonce"`
+	Metadata        pqtype.NullRawMessage `db:"metadata" json:"metadata"`
+	CreatedAt       sql.NullTime          `db:"created_at" json:"created_at"`
+	UpdatedAt       sql.NullTime          `db:"updated_at" json:"updated_at"`
+	ExpiresAt       sql.NullTime          `db:"expires_at" json:"expires_at"`
 }
 
 type PaymentTransaction struct {

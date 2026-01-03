@@ -14,40 +14,59 @@ import (
 )
 
 const createPaymentIntent = `-- name: CreatePaymentIntent :one
-INSERT INTO payment_intents (transaction_id, merchant_id, amount, currency, reference, callback_url, metadata)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, transaction_id, merchant_id, amount, currency, reference, callback_url, status, metadata, created_at, updated_at, expires_at
+INSERT INTO payment_intents (payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, metadata)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, status, metadata, created_at, updated_at, expires_at
 `
 
 type CreatePaymentIntentParams struct {
-	TransactionID string                `db:"transaction_id" json:"transaction_id"`
-	MerchantID    uuid.UUID             `db:"merchant_id" json:"merchant_id"`
-	Amount        string                `db:"amount" json:"amount"`
-	Currency      CurrencyType          `db:"currency" json:"currency"`
-	Reference     string                `db:"reference" json:"reference"`
-	CallbackUrl   string                `db:"callback_url" json:"callback_url"`
-	Metadata      pqtype.NullRawMessage `db:"metadata" json:"metadata"`
+	PaymentIntentID string                `db:"payment_intent_id" json:"payment_intent_id"`
+	MerchantID      uuid.UUID             `db:"merchant_id" json:"merchant_id"`
+	Amount          string                `db:"amount" json:"amount"`
+	Currency        string                `db:"currency" json:"currency"`
+	Description     sql.NullString        `db:"description" json:"description"`
+	CallbackUrl     string                `db:"callback_url" json:"callback_url"`
+	Nonce           string                `db:"nonce" json:"nonce"`
+	Metadata        pqtype.NullRawMessage `db:"metadata" json:"metadata"`
 }
 
-func (q *Queries) CreatePaymentIntent(ctx context.Context, arg *CreatePaymentIntentParams) (*PaymentIntent, error) {
+type CreatePaymentIntentRow struct {
+	ID              uuid.UUID             `db:"id" json:"id"`
+	PaymentIntentID string                `db:"payment_intent_id" json:"payment_intent_id"`
+	MerchantID      uuid.UUID             `db:"merchant_id" json:"merchant_id"`
+	Amount          string                `db:"amount" json:"amount"`
+	Currency        string                `db:"currency" json:"currency"`
+	Description     sql.NullString        `db:"description" json:"description"`
+	CallbackUrl     string                `db:"callback_url" json:"callback_url"`
+	Nonce           string                `db:"nonce" json:"nonce"`
+	Status          NullPaymentStatus     `db:"status" json:"status"`
+	Metadata        pqtype.NullRawMessage `db:"metadata" json:"metadata"`
+	CreatedAt       sql.NullTime          `db:"created_at" json:"created_at"`
+	UpdatedAt       sql.NullTime          `db:"updated_at" json:"updated_at"`
+	ExpiresAt       sql.NullTime          `db:"expires_at" json:"expires_at"`
+}
+
+func (q *Queries) CreatePaymentIntent(ctx context.Context, arg *CreatePaymentIntentParams) (*CreatePaymentIntentRow, error) {
 	row := q.db.QueryRowContext(ctx, createPaymentIntent,
-		arg.TransactionID,
+		arg.PaymentIntentID,
 		arg.MerchantID,
 		arg.Amount,
 		arg.Currency,
-		arg.Reference,
+		arg.Description,
 		arg.CallbackUrl,
+		arg.Nonce,
 		arg.Metadata,
 	)
-	var i PaymentIntent
+	var i CreatePaymentIntentRow
 	err := row.Scan(
 		&i.ID,
-		&i.TransactionID,
+		&i.PaymentIntentID,
 		&i.MerchantID,
 		&i.Amount,
 		&i.Currency,
-		&i.Reference,
+		&i.Description,
 		&i.CallbackUrl,
+		&i.Nonce,
 		&i.Status,
 		&i.Metadata,
 		&i.CreatedAt,
@@ -101,22 +120,39 @@ func (q *Queries) CreatePaymentTransaction(ctx context.Context, arg *CreatePayme
 }
 
 const getPaymentIntent = `-- name: GetPaymentIntent :one
-SELECT id, transaction_id, merchant_id, amount, currency, reference, callback_url, status, metadata, created_at, updated_at, expires_at
+SELECT id, payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, status, metadata, created_at, updated_at, expires_at
 FROM payment_intents
-WHERE transaction_id = $1
+WHERE payment_intent_id = $1
 `
 
-func (q *Queries) GetPaymentIntent(ctx context.Context, transactionID string) (*PaymentIntent, error) {
-	row := q.db.QueryRowContext(ctx, getPaymentIntent, transactionID)
-	var i PaymentIntent
+type GetPaymentIntentRow struct {
+	ID              uuid.UUID             `db:"id" json:"id"`
+	PaymentIntentID string                `db:"payment_intent_id" json:"payment_intent_id"`
+	MerchantID      uuid.UUID             `db:"merchant_id" json:"merchant_id"`
+	Amount          string                `db:"amount" json:"amount"`
+	Currency        string                `db:"currency" json:"currency"`
+	Description     sql.NullString        `db:"description" json:"description"`
+	CallbackUrl     string                `db:"callback_url" json:"callback_url"`
+	Nonce           string                `db:"nonce" json:"nonce"`
+	Status          NullPaymentStatus     `db:"status" json:"status"`
+	Metadata        pqtype.NullRawMessage `db:"metadata" json:"metadata"`
+	CreatedAt       sql.NullTime          `db:"created_at" json:"created_at"`
+	UpdatedAt       sql.NullTime          `db:"updated_at" json:"updated_at"`
+	ExpiresAt       sql.NullTime          `db:"expires_at" json:"expires_at"`
+}
+
+func (q *Queries) GetPaymentIntent(ctx context.Context, paymentIntentID string) (*GetPaymentIntentRow, error) {
+	row := q.db.QueryRowContext(ctx, getPaymentIntent, paymentIntentID)
+	var i GetPaymentIntentRow
 	err := row.Scan(
 		&i.ID,
-		&i.TransactionID,
+		&i.PaymentIntentID,
 		&i.MerchantID,
 		&i.Amount,
 		&i.Currency,
-		&i.Reference,
+		&i.Description,
 		&i.CallbackUrl,
+		&i.Nonce,
 		&i.Status,
 		&i.Metadata,
 		&i.CreatedAt,
@@ -127,22 +163,87 @@ func (q *Queries) GetPaymentIntent(ctx context.Context, transactionID string) (*
 }
 
 const getPaymentIntentByID = `-- name: GetPaymentIntentByID :one
-SELECT id, transaction_id, merchant_id, amount, currency, reference, callback_url, status, metadata, created_at, updated_at, expires_at
+SELECT id, payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, status, metadata, created_at, updated_at, expires_at
 FROM payment_intents
 WHERE id = $1
 `
 
-func (q *Queries) GetPaymentIntentByID(ctx context.Context, id uuid.UUID) (*PaymentIntent, error) {
+type GetPaymentIntentByIDRow struct {
+	ID              uuid.UUID             `db:"id" json:"id"`
+	PaymentIntentID string                `db:"payment_intent_id" json:"payment_intent_id"`
+	MerchantID      uuid.UUID             `db:"merchant_id" json:"merchant_id"`
+	Amount          string                `db:"amount" json:"amount"`
+	Currency        string                `db:"currency" json:"currency"`
+	Description     sql.NullString        `db:"description" json:"description"`
+	CallbackUrl     string                `db:"callback_url" json:"callback_url"`
+	Nonce           string                `db:"nonce" json:"nonce"`
+	Status          NullPaymentStatus     `db:"status" json:"status"`
+	Metadata        pqtype.NullRawMessage `db:"metadata" json:"metadata"`
+	CreatedAt       sql.NullTime          `db:"created_at" json:"created_at"`
+	UpdatedAt       sql.NullTime          `db:"updated_at" json:"updated_at"`
+	ExpiresAt       sql.NullTime          `db:"expires_at" json:"expires_at"`
+}
+
+func (q *Queries) GetPaymentIntentByID(ctx context.Context, id uuid.UUID) (*GetPaymentIntentByIDRow, error) {
 	row := q.db.QueryRowContext(ctx, getPaymentIntentByID, id)
-	var i PaymentIntent
+	var i GetPaymentIntentByIDRow
 	err := row.Scan(
 		&i.ID,
-		&i.TransactionID,
+		&i.PaymentIntentID,
 		&i.MerchantID,
 		&i.Amount,
 		&i.Currency,
-		&i.Reference,
+		&i.Description,
 		&i.CallbackUrl,
+		&i.Nonce,
+		&i.Status,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ExpiresAt,
+	)
+	return &i, err
+}
+
+const getPaymentIntentByNonce = `-- name: GetPaymentIntentByNonce :one
+SELECT id, payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, status, metadata, created_at, updated_at, expires_at
+FROM payment_intents
+WHERE merchant_id = $1 AND nonce = $2
+`
+
+type GetPaymentIntentByNonceParams struct {
+	MerchantID uuid.UUID `db:"merchant_id" json:"merchant_id"`
+	Nonce      string    `db:"nonce" json:"nonce"`
+}
+
+type GetPaymentIntentByNonceRow struct {
+	ID              uuid.UUID             `db:"id" json:"id"`
+	PaymentIntentID string                `db:"payment_intent_id" json:"payment_intent_id"`
+	MerchantID      uuid.UUID             `db:"merchant_id" json:"merchant_id"`
+	Amount          string                `db:"amount" json:"amount"`
+	Currency        string                `db:"currency" json:"currency"`
+	Description     sql.NullString        `db:"description" json:"description"`
+	CallbackUrl     string                `db:"callback_url" json:"callback_url"`
+	Nonce           string                `db:"nonce" json:"nonce"`
+	Status          NullPaymentStatus     `db:"status" json:"status"`
+	Metadata        pqtype.NullRawMessage `db:"metadata" json:"metadata"`
+	CreatedAt       sql.NullTime          `db:"created_at" json:"created_at"`
+	UpdatedAt       sql.NullTime          `db:"updated_at" json:"updated_at"`
+	ExpiresAt       sql.NullTime          `db:"expires_at" json:"expires_at"`
+}
+
+func (q *Queries) GetPaymentIntentByNonce(ctx context.Context, arg *GetPaymentIntentByNonceParams) (*GetPaymentIntentByNonceRow, error) {
+	row := q.db.QueryRowContext(ctx, getPaymentIntentByNonce, arg.MerchantID, arg.Nonce)
+	var i GetPaymentIntentByNonceRow
+	err := row.Scan(
+		&i.ID,
+		&i.PaymentIntentID,
+		&i.MerchantID,
+		&i.Amount,
+		&i.Currency,
+		&i.Description,
+		&i.CallbackUrl,
+		&i.Nonce,
 		&i.Status,
 		&i.Metadata,
 		&i.CreatedAt,
@@ -183,7 +284,7 @@ const updatePaymentIntentStatus = `-- name: UpdatePaymentIntentStatus :one
 UPDATE payment_intents
 SET status = $2, updated_at = NOW()
 WHERE id = $1 AND status = $3
-RETURNING id, transaction_id, merchant_id, amount, currency, reference, callback_url, status, metadata, created_at, updated_at, expires_at
+RETURNING id, payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, status, metadata, created_at, updated_at, expires_at
 `
 
 type UpdatePaymentIntentStatusParams struct {
@@ -192,17 +293,34 @@ type UpdatePaymentIntentStatusParams struct {
 	Status_2 NullPaymentStatus `db:"status_2" json:"status_2"`
 }
 
-func (q *Queries) UpdatePaymentIntentStatus(ctx context.Context, arg *UpdatePaymentIntentStatusParams) (*PaymentIntent, error) {
+type UpdatePaymentIntentStatusRow struct {
+	ID              uuid.UUID             `db:"id" json:"id"`
+	PaymentIntentID string                `db:"payment_intent_id" json:"payment_intent_id"`
+	MerchantID      uuid.UUID             `db:"merchant_id" json:"merchant_id"`
+	Amount          string                `db:"amount" json:"amount"`
+	Currency        string                `db:"currency" json:"currency"`
+	Description     sql.NullString        `db:"description" json:"description"`
+	CallbackUrl     string                `db:"callback_url" json:"callback_url"`
+	Nonce           string                `db:"nonce" json:"nonce"`
+	Status          NullPaymentStatus     `db:"status" json:"status"`
+	Metadata        pqtype.NullRawMessage `db:"metadata" json:"metadata"`
+	CreatedAt       sql.NullTime          `db:"created_at" json:"created_at"`
+	UpdatedAt       sql.NullTime          `db:"updated_at" json:"updated_at"`
+	ExpiresAt       sql.NullTime          `db:"expires_at" json:"expires_at"`
+}
+
+func (q *Queries) UpdatePaymentIntentStatus(ctx context.Context, arg *UpdatePaymentIntentStatusParams) (*UpdatePaymentIntentStatusRow, error) {
 	row := q.db.QueryRowContext(ctx, updatePaymentIntentStatus, arg.ID, arg.Status, arg.Status_2)
-	var i PaymentIntent
+	var i UpdatePaymentIntentStatusRow
 	err := row.Scan(
 		&i.ID,
-		&i.TransactionID,
+		&i.PaymentIntentID,
 		&i.MerchantID,
 		&i.Amount,
 		&i.Currency,
-		&i.Reference,
+		&i.Description,
 		&i.CallbackUrl,
+		&i.Nonce,
 		&i.Status,
 		&i.Metadata,
 		&i.CreatedAt,

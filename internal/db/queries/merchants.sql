@@ -14,12 +14,24 @@ SELECT id, name, email, status, created_at, updated_at
 FROM merchants
 WHERE id = $1;
 
+-- name: GetMerchantByMerchantID :one
+SELECT id, merchant_id, name, email, status, created_at, updated_at
+FROM merchants
+WHERE merchant_id = $1;
+
 -- name: GetMerchantWithAPIKey :one
 SELECT m.id, m.merchant_id, m.name, m.email, m.status, m.created_at, m.updated_at,
-       mak.api_key, mak.status as api_key_status, mak.created_at as api_key_created_at
+       mak.api_key, mak.secret_key, mak.status as api_key_status, mak.created_at as api_key_created_at
 FROM merchants m
 JOIN merchant_api_keys mak ON m.id = mak.merchant_id
 WHERE m.merchant_id = $1 AND mak.status = 'active';
+
+-- name: GetMerchantByAPIKeyValue :one
+SELECT m.id, m.merchant_id, m.name, m.email, m.status, m.created_at, m.updated_at,
+       mak.api_key, mak.secret_key, mak.status as api_key_status, mak.created_at as api_key_created_at
+FROM merchants m
+JOIN merchant_api_keys mak ON m.id = mak.merchant_id
+WHERE mak.api_key = $1 AND mak.status = 'active' AND m.status = 'active';
 
 -- name: CreateMerchantAPIKey :one
 INSERT INTO merchant_api_keys (merchant_id, api_key, secret_key)

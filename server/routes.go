@@ -11,7 +11,7 @@ import (
 func (s *Server) setupRoutes() {
 	s.echo.GET("/health", s.healthCheck)
 
-	checkoutHandler := checkout.NewCheckoutHandler(s.ICHECKOUTSERVICE, s.config, s.logger, s.IRabbitMQManager)
+	checkoutHandler := checkout.NewCheckoutHandler(s.ICHECKOUTSERVICE, s.IACCOUNTSERVICE, s.config, s.logger, s.IRabbitMQManager)
 	accountHandler := account.NewAccountHandler(s.IACCOUNTSERVICE, s.config, s.logger)
 	transactionHandler := transaction.NewTransactionHandler(s.ITRANSACTIONSERVICE, s.config, s.logger)
 

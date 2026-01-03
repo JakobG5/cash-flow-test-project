@@ -133,9 +133,71 @@ func (q *Queries) GetMerchantByAPIKey(ctx context.Context, apiKey string) (*GetM
 	return &i, err
 }
 
+const getMerchantByAPIKeyValue = `-- name: GetMerchantByAPIKeyValue :one
+SELECT m.id, m.merchant_id, m.name, m.email, m.status, m.created_at, m.updated_at,
+       mak.api_key, mak.secret_key, mak.status as api_key_status, mak.created_at as api_key_created_at
+FROM merchants m
+JOIN merchant_api_keys mak ON m.id = mak.merchant_id
+WHERE mak.api_key = $1 AND mak.status = 'active' AND m.status = 'active'
+`
+
+type GetMerchantByAPIKeyValueRow struct {
+	ID              uuid.UUID          `db:"id" json:"id"`
+	MerchantID      string             `db:"merchant_id" json:"merchant_id"`
+	Name            string             `db:"name" json:"name"`
+	Email           string             `db:"email" json:"email"`
+	Status          NullMerchantStatus `db:"status" json:"status"`
+	CreatedAt       sql.NullTime       `db:"created_at" json:"created_at"`
+	UpdatedAt       sql.NullTime       `db:"updated_at" json:"updated_at"`
+	ApiKey          string             `db:"api_key" json:"api_key"`
+	SecretKey       string             `db:"secret_key" json:"secret_key"`
+	ApiKeyStatus    NullApiKeyStatus   `db:"api_key_status" json:"api_key_status"`
+	ApiKeyCreatedAt sql.NullTime       `db:"api_key_created_at" json:"api_key_created_at"`
+}
+
+func (q *Queries) GetMerchantByAPIKeyValue(ctx context.Context, apiKey string) (*GetMerchantByAPIKeyValueRow, error) {
+	row := q.db.QueryRowContext(ctx, getMerchantByAPIKeyValue, apiKey)
+	var i GetMerchantByAPIKeyValueRow
+	err := row.Scan(
+		&i.ID,
+		&i.MerchantID,
+		&i.Name,
+		&i.Email,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ApiKey,
+		&i.SecretKey,
+		&i.ApiKeyStatus,
+		&i.ApiKeyCreatedAt,
+	)
+	return &i, err
+}
+
+const getMerchantByMerchantID = `-- name: GetMerchantByMerchantID :one
+SELECT id, merchant_id, name, email, status, created_at, updated_at
+FROM merchants
+WHERE merchant_id = $1
+`
+
+func (q *Queries) GetMerchantByMerchantID(ctx context.Context, merchantID string) (*Merchant, error) {
+	row := q.db.QueryRowContext(ctx, getMerchantByMerchantID, merchantID)
+	var i Merchant
+	err := row.Scan(
+		&i.ID,
+		&i.MerchantID,
+		&i.Name,
+		&i.Email,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return &i, err
+}
+
 const getMerchantWithAPIKey = `-- name: GetMerchantWithAPIKey :one
 SELECT m.id, m.merchant_id, m.name, m.email, m.status, m.created_at, m.updated_at,
-       mak.api_key, mak.status as api_key_status, mak.created_at as api_key_created_at
+       mak.api_key, mak.secret_key, mak.status as api_key_status, mak.created_at as api_key_created_at
 FROM merchants m
 JOIN merchant_api_keys mak ON m.id = mak.merchant_id
 WHERE m.merchant_id = $1 AND mak.status = 'active'
@@ -150,6 +212,7 @@ type GetMerchantWithAPIKeyRow struct {
 	CreatedAt       sql.NullTime       `db:"created_at" json:"created_at"`
 	UpdatedAt       sql.NullTime       `db:"updated_at" json:"updated_at"`
 	ApiKey          string             `db:"api_key" json:"api_key"`
+	SecretKey       string             `db:"secret_key" json:"secret_key"`
 	ApiKeyStatus    NullApiKeyStatus   `db:"api_key_status" json:"api_key_status"`
 	ApiKeyCreatedAt sql.NullTime       `db:"api_key_created_at" json:"api_key_created_at"`
 }
@@ -166,6 +229,7 @@ func (q *Queries) GetMerchantWithAPIKey(ctx context.Context, merchantID string) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ApiKey,
+		&i.SecretKey,
 		&i.ApiKeyStatus,
 		&i.ApiKeyCreatedAt,
 	)

@@ -1,7 +1,7 @@
 package checkoutservice
 
-import "cash-flow-financial/internal/managers/rabbitmqmanager"
+import "cash-flow-financial/internal/models"
 
 type ICheckoutService interface {
-	CreatePaymentIntent(amount, currency, reference, callbackURL, merchantID string, rabbitMgr rabbitmqmanager.IRabbitMQManager) error
+	CreatePaymentIntent(merchantID string, req models.CreatePaymentIntentRequest) (*models.CreatePaymentIntentResponse, error)
 }

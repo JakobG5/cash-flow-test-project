@@ -31,18 +31,20 @@ CREATE TABLE merchant_api_keys (
 
 CREATE TABLE payment_intents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    transaction_id VARCHAR(255) UNIQUE NOT NULL,
-    merchant_id UUID NOT NULL REFERENCES merchants(id),
-    amount DECIMAL(15,2) NOT NULL CHECK (amount > 0),
-    currency currency_type NOT NULL,
-    reference VARCHAR(255) UNIQUE NOT NULL,
-    callback_url VARCHAR(500) NOT NULL,
+    payment_intent_id VARCHAR(20) UNIQUE NOT NULL,
+    merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    amount DECIMAL(15,2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
     status payment_status DEFAULT 'pending',
+    description TEXT,
+    callback_url VARCHAR(500) NOT NULL,
+    nonce VARCHAR(64) UNIQUE NOT NULL,
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours'),
-    CONSTRAINT fk_payment_intents_merchant FOREIGN KEY (merchant_id) REFERENCES merchants(id)
+    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 minutes'),
+    CONSTRAINT fk_payment_intents_merchant FOREIGN KEY (merchant_id) REFERENCES merchants(id),
+    CONSTRAINT unique_merchant_nonce UNIQUE (merchant_id, nonce)
 );
 
 CREATE TABLE payment_transactions (
@@ -81,8 +83,8 @@ CREATE INDEX idx_merchant_api_keys_merchant ON merchant_api_keys(merchant_id);
 CREATE INDEX idx_merchant_api_keys_api_key ON merchant_api_keys(api_key);
 CREATE INDEX idx_merchant_api_keys_status ON merchant_api_keys(status);
 CREATE INDEX idx_payment_intents_merchant ON payment_intents(merchant_id);
-CREATE INDEX idx_payment_intents_transaction_id ON payment_intents(transaction_id);
-CREATE INDEX idx_payment_intents_reference ON payment_intents(reference);
+CREATE INDEX idx_payment_intents_payment_intent_id ON payment_intents(payment_intent_id);
+CREATE INDEX idx_payment_intents_nonce ON payment_intents(nonce);
 CREATE INDEX idx_payment_intents_status ON payment_intents(status);
 CREATE INDEX idx_payment_intents_expires_at ON payment_intents(expires_at);
 CREATE INDEX idx_payment_transactions_transaction_id ON payment_transactions(transaction_id);

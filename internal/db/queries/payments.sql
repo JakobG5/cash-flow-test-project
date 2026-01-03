@@ -1,23 +1,28 @@
 -- name: CreatePaymentIntent :one
-INSERT INTO payment_intents (transaction_id, merchant_id, amount, currency, reference, callback_url, metadata)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, transaction_id, merchant_id, amount, currency, reference, callback_url, status, metadata, created_at, updated_at, expires_at;
+INSERT INTO payment_intents (payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, metadata)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, status, metadata, created_at, updated_at, expires_at;
 
 -- name: GetPaymentIntent :one
-SELECT id, transaction_id, merchant_id, amount, currency, reference, callback_url, status, metadata, created_at, updated_at, expires_at
+SELECT id, payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, status, metadata, created_at, updated_at, expires_at
 FROM payment_intents
-WHERE transaction_id = $1;
+WHERE payment_intent_id = $1;
 
 -- name: GetPaymentIntentByID :one
-SELECT id, transaction_id, merchant_id, amount, currency, reference, callback_url, status, metadata, created_at, updated_at, expires_at
+SELECT id, payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, status, metadata, created_at, updated_at, expires_at
 FROM payment_intents
 WHERE id = $1;
+
+-- name: GetPaymentIntentByNonce :one
+SELECT id, payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, status, metadata, created_at, updated_at, expires_at
+FROM payment_intents
+WHERE merchant_id = $1 AND nonce = $2;
 
 -- name: UpdatePaymentIntentStatus :one
 UPDATE payment_intents
 SET status = $2, updated_at = NOW()
 WHERE id = $1 AND status = $3
-RETURNING id, transaction_id, merchant_id, amount, currency, reference, callback_url, status, metadata, created_at, updated_at, expires_at;
+RETURNING id, payment_intent_id, merchant_id, amount, currency, description, callback_url, nonce, status, metadata, created_at, updated_at, expires_at;
 
 -- name: CreatePaymentTransaction :one
 INSERT INTO payment_transactions (transaction_id, payment_intent_id, merchant_id, amount, currency, payment_method)
