@@ -121,6 +121,50 @@ func (q *Queries) CreatePaymentTransaction(ctx context.Context, arg *CreatePayme
 	return &i, err
 }
 
+const getMerchantTransactions = `-- name: GetMerchantTransactions :many
+SELECT id, payment_intent_id, merchant_id, amount, currency, status, third_party_reference, payment_method, fee_amount, account_number, processed_at, created_at, updated_at
+FROM payment_transactions
+WHERE merchant_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetMerchantTransactions(ctx context.Context, merchantID string) ([]*PaymentTransaction, error) {
+	rows, err := q.db.QueryContext(ctx, getMerchantTransactions, merchantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []*PaymentTransaction{}
+	for rows.Next() {
+		var i PaymentTransaction
+		if err := rows.Scan(
+			&i.ID,
+			&i.PaymentIntentID,
+			&i.MerchantID,
+			&i.Amount,
+			&i.Currency,
+			&i.Status,
+			&i.ThirdPartyReference,
+			&i.PaymentMethod,
+			&i.FeeAmount,
+			&i.AccountNumber,
+			&i.ProcessedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPaymentIntent = `-- name: GetPaymentIntent :one
 SELECT pi.id, pi.payment_intent_id, pi.merchant_id, pi.amount, pi.currency, pi.description, pi.callback_url, pi.nonce, pi.status, pi.metadata, pi.created_at, pi.updated_at, pi.expires_at
 FROM payment_intents pi

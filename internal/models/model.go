@@ -55,17 +55,43 @@ type ErrorResponse struct {
 	Details []string `json:"details,omitempty"`
 }
 
+type MerchantBalance struct {
+	Currency             string `json:"currency"`
+	AvailableBalance     string `json:"available_balance"`
+	TotalDeposit         string `json:"total_deposit"`
+	TotalTransactionCount int32  `json:"total_transaction_count"`
+	LastUpdated          string `json:"last_updated"`
+}
+
+type MerchantTransaction struct {
+	ID                 string `json:"id"`
+	PaymentIntentID    string `json:"payment_intent_id"`
+	MerchantID         string `json:"merchant_id"`
+	Amount             string `json:"amount"`
+	Currency           string `json:"currency"`
+	Status             string `json:"status"`
+	ThirdPartyReference string `json:"third_party_reference,omitempty"`
+	PaymentMethod      string `json:"payment_method,omitempty"`
+	FeeAmount          string `json:"fee_amount,omitempty"`
+	AccountNumber      string `json:"account_number,omitempty"`
+	ProcessedAt        string `json:"processed_at,omitempty"`
+	CreatedAt          string `json:"created_at"`
+	UpdatedAt          string `json:"updated_at"`
+}
+
 type GetMerchantResponse struct {
-	Status         bool   `json:"status"`
-	MerchantID     string `json:"merchant_id"`
-	Name           string `json:"name"`
-	Email          string `json:"email"`
-	MerchantStatus string `json:"merchant_status"`
-	APIKey         string `json:"api_key"`
-	APIKeyStatus   string `json:"api_key_status"`
-	CreatedAt      string `json:"created_at"`
-	APIKeyCreated  string `json:"api_key_created"`
-	Message        string `json:"message"`
+	Status         bool                  `json:"status"`
+	MerchantID     string                `json:"merchant_id"`
+	Name           string                `json:"name"`
+	Email          string                `json:"email"`
+	MerchantStatus string                `json:"merchant_status"`
+	APIKey         string                `json:"api_key"`
+	APIKeyStatus   string                `json:"api_key_status"`
+	CreatedAt      string                `json:"created_at"`
+	APIKeyCreated  string                `json:"api_key_created"`
+	Balances       []MerchantBalance     `json:"balances,omitempty"`
+	Transactions   []MerchantTransaction `json:"transactions,omitempty"`
+	Message        string                `json:"message"`
 }
 
 type CreatePaymentIntentRequest struct {

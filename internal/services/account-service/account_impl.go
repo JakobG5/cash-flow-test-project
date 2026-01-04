@@ -147,6 +147,85 @@ func (as *AccountService) GetMerchantByID(merchantID string) (*models.GetMerchan
 		return nil, fmt.Errorf("failed to retrieve API key")
 	}
 
+	// Get merchant balances
+	balances, err := as.queries.GetMerchantBalances(context.Background(), merchant.ID)
+	if err != nil {
+		as.logger.Warn("Failed to get merchant balances", zap.String("merchant_id", merchantID), zap.Error(err))
+		// Don't fail the request, just log the warning
+	}
+
+	var merchantBalances []models.MerchantBalance
+	for _, balance := range balances {
+		merchantBalances = append(merchantBalances, models.MerchantBalance{
+			Currency:              string(balance.Currency),
+			AvailableBalance:      balance.AvailableBalance.String,
+			TotalDeposit:          balance.TotalDeposit.String,
+			TotalTransactionCount: balance.TotalTransactionCount.Int32,
+			LastUpdated:           balance.LastUpdated.Time.Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+
+	// Get merchant transactions
+	transactions, err := as.queries.GetMerchantTransactions(context.Background(), merchant.MerchantID)
+	if err != nil {
+		as.logger.Warn("Failed to get merchant transactions", zap.String("merchant_id", merchantID), zap.Error(err))
+		// Don't fail the request, just log the warning
+	}
+
+	var merchantTransactions []models.MerchantTransaction
+	for _, transaction := range transactions {
+		processedAt := ""
+		if transaction.ProcessedAt.Valid {
+			processedAt = transaction.ProcessedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+		}
+
+		thirdPartyRef := ""
+		if transaction.ThirdPartyReference.Valid {
+			thirdPartyRef = transaction.ThirdPartyReference.String
+		}
+
+		paymentMethod := ""
+		if transaction.PaymentMethod.Valid {
+			paymentMethod = string(transaction.PaymentMethod.PaymentMethodType)
+		}
+
+		feeAmount := ""
+		if transaction.FeeAmount.Valid {
+			feeAmount = transaction.FeeAmount.String
+		}
+
+		accountNumber := ""
+		if transaction.AccountNumber.Valid {
+			accountNumber = transaction.AccountNumber.String
+		}
+
+		createdAt := ""
+		if transaction.CreatedAt.Valid {
+			createdAt = transaction.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+		}
+
+		updatedAt := ""
+		if transaction.UpdatedAt.Valid {
+			updatedAt = transaction.UpdatedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+		}
+
+		merchantTransactions = append(merchantTransactions, models.MerchantTransaction{
+			ID:                  transaction.ID.String(),
+			PaymentIntentID:     transaction.PaymentIntentID,
+			MerchantID:          transaction.MerchantID,
+			Amount:              transaction.Amount,
+			Currency:            string(transaction.Currency),
+			Status:              string(transaction.Status.TransactionStatus),
+			ThirdPartyReference: thirdPartyRef,
+			PaymentMethod:       paymentMethod,
+			FeeAmount:           feeAmount,
+			AccountNumber:       accountNumber,
+			ProcessedAt:         processedAt,
+			CreatedAt:           createdAt,
+			UpdatedAt:           updatedAt,
+		})
+	}
+
 	as.logger.Info("Merchant retrieved successfully", zap.String("merchant_id", merchantID), zap.String("email", merchant.Email))
 
 	return &models.GetMerchantResponse{
@@ -159,7 +238,9 @@ func (as *AccountService) GetMerchantByID(merchantID string) (*models.GetMerchan
 		APIKeyStatus:   apiKeyStatus,
 		CreatedAt:      createdAt,
 		APIKeyCreated:  apiKeyCreatedAt,
-		Message:        "Merchant retrieved successfully",
+		Balances:       merchantBalances,
+		Transactions:   merchantTransactions,
+		Message:        "Merchant details retrieved successfully",
 	}, nil
 }
 

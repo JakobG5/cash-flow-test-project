@@ -45,3 +45,9 @@ RETURNING id, payment_intent_id, merchant_id, amount, currency, status, third_pa
 SELECT id, payment_intent_id, merchant_id, amount, currency, status, third_party_reference, payment_method, fee_amount, account_number, processed_at, created_at, updated_at
 FROM payment_transactions
 WHERE id = $1;
+
+-- name: GetMerchantTransactions :many
+SELECT id, payment_intent_id, merchant_id, amount, currency, status, third_party_reference, payment_method, fee_amount, account_number, processed_at, created_at, updated_at
+FROM payment_transactions
+WHERE merchant_id = $1
+ORDER BY created_at DESC;

@@ -22,7 +22,7 @@ func (s *Server) setupRoutes() {
 
 	// Account routes
 	apiV1.POST("/account/create-merchant", accountHandler.CreateMerchantAPI)
-	apiV1.GET("/account/merchant", accountHandler.GetMerchantAPI)
+	apiV1.GET("/account/merchant", accountHandler.GetMerchantAPI) // Requires merchant_id query param, returns merchant details, balances, and transactions
 
 	// Transaction routes
 	apiV1.GET("/transaction/get-payment-status", transactionHandler.GetTransaction)
