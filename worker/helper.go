@@ -7,7 +7,6 @@ import (
 	"math/big"
 )
 
-// generateThirdPartyReference generates a 7-digit random string with capital letters only
 func generateThirdPartyReference() string {
 	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	b := make([]byte, 7)
@@ -18,7 +17,6 @@ func generateThirdPartyReference() string {
 	return string(b)
 }
 
-// selectRandomPaymentMethod randomly selects from cbe, mpesa, telebirr, awash
 func selectRandomPaymentMethod() db.PaymentMethodType {
 	methods := []db.PaymentMethodType{
 		db.PaymentMethodTypeCbe,
@@ -30,21 +28,18 @@ func selectRandomPaymentMethod() db.PaymentMethodType {
 	return methods[num.Int64()]
 }
 
-// generateAccountNumber generates account number based on payment method
 func generateAccountNumber(paymentMethod db.PaymentMethodType) string {
-	// Generate 8 random digits
 	digits := make([]byte, 8)
 	for i := range digits {
 		num, _ := rand.Int(rand.Reader, big.NewInt(10))
 		digits[i] = byte('0' + num.Int64())
 	}
 
-	// Prefix based on payment method
 	var prefix string
 	switch paymentMethod {
 	case db.PaymentMethodTypeMpesa:
 		prefix = "2517"
-	default: // cbe, telebirr, awash
+	default:
 		prefix = "2519"
 	}
 

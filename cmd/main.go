@@ -12,6 +12,7 @@ import (
 	"cash-flow-financial/internal/managers/loggermanager"
 	"cash-flow-financial/internal/managers/rabbitmqmanager"
 	accountservice "cash-flow-financial/internal/services/account-service"
+	"cash-flow-financial/internal/services/callback"
 	checkoutservice "cash-flow-financial/internal/services/checkout-service"
 	transactionservice "cash-flow-financial/internal/services/transaction-service"
 	"cash-flow-financial/server"
@@ -46,8 +47,11 @@ func main() {
 	accountService := accountservice.NewAccountService(queries, logger, cfg)
 	transactionService := transactionservice.NewTransactionService(queries, logger)
 
+	// Initialize callback service
+	callbackService := callback.NewCallbackService(logger, cfg)
+
 	// Initialize worker
-	paymentWorker := worker.NewWorker(queries, rabbitManager, logger)
+	paymentWorker := worker.NewWorker(queries, rabbitManager, logger, callbackService)
 
 	srv := server.NewServer(cfg, logger, checkoutService, accountService, transactionService, dbManager, rabbitManager)
 

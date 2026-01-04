@@ -10,6 +10,7 @@ import (
 	"cash-flow-financial/internal/db"
 	"cash-flow-financial/internal/managers/loggermanager"
 	"cash-flow-financial/internal/managers/rabbitmqmanager"
+	"cash-flow-financial/internal/services/callback"
 
 	"go.uber.org/zap"
 )
@@ -18,16 +19,18 @@ type Worker struct {
 	queries      *db.Queries
 	rabbitMQ     *rabbitmqmanager.RabbitMQManager
 	logger       *loggermanager.Logger
+	callbackSvc  callback.ICallbackService
 	queueName    string
 	exchangeName string
 	routingKey   string
 }
 
-func NewWorker(queries *db.Queries, rabbitMQ *rabbitmqmanager.RabbitMQManager, logger *loggermanager.Logger) IWorker {
+func NewWorker(queries *db.Queries, rabbitMQ *rabbitmqmanager.RabbitMQManager, logger *loggermanager.Logger, callbackSvc callback.ICallbackService) IWorker {
 	return &Worker{
 		queries:      queries,
 		rabbitMQ:     rabbitMQ,
 		logger:       logger,
+		callbackSvc:  callbackSvc,
 		queueName:    "payment_intents_queue",
 		exchangeName: "payment_intents_exchange",
 		routingKey:   "payment.intent.created",
@@ -37,40 +40,37 @@ func NewWorker(queries *db.Queries, rabbitMQ *rabbitmqmanager.RabbitMQManager, l
 func (w *Worker) Start(ctx context.Context) error {
 	w.logger.Info("Starting payment worker...")
 
-	// Declare exchange
 	err := w.rabbitMQ.Channel.ExchangeDeclare(
-		w.exchangeName, // name
-		"topic",        // type
-		true,           // durable
-		false,          // auto-deleted
-		false,          // internal
-		false,          // no-wait
-		nil,            // arguments
+		w.exchangeName,
+		"topic",
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		w.logger.Error("Failed to declare exchange", zap.Error(err))
 		return fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
-	// Declare queue
 	queue, err := w.rabbitMQ.Channel.QueueDeclare(
-		w.queueName, // name
-		true,        // durable
-		false,       // delete when unused
-		false,       // exclusive
-		false,       // no-wait
-		nil,         // arguments
+		w.queueName,
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		w.logger.Error("Failed to declare queue", zap.Error(err))
 		return fmt.Errorf("failed to declare queue: %w", err)
 	}
 
-	// Bind queue to exchange
 	err = w.rabbitMQ.Channel.QueueBind(
-		queue.Name,     // queue name
-		w.routingKey,   // routing key
-		w.exchangeName, // exchange
+		queue.Name,
+		w.routingKey,
+		w.exchangeName,
 		false,
 		nil,
 	)
@@ -79,15 +79,14 @@ func (w *Worker) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to bind queue: %w", err)
 	}
 
-	// Start consuming messages
 	msgs, err := w.rabbitMQ.Channel.Consume(
-		queue.Name, // queue
-		"",         // consumer
-		false,      // auto-ack
-		false,      // exclusive
-		false,      // no-local
-		false,      // no-wait
-		nil,        // args
+		queue.Name,
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		w.logger.Error("Failed to register consumer", zap.Error(err))
@@ -96,7 +95,6 @@ func (w *Worker) Start(ctx context.Context) error {
 
 	w.logger.Info("Payment worker started successfully", zap.String("queue", queue.Name))
 
-	// Process messages in a goroutine
 	go func() {
 		for {
 			select {
@@ -116,13 +114,13 @@ func (w *Worker) Start(ctx context.Context) error {
 				var msg PaymentIntentMessage
 				if err := json.Unmarshal(d.Body, &msg); err != nil {
 					w.logger.Error("Failed to unmarshal message", zap.Error(err), zap.String("body", string(d.Body)))
-					d.Nack(false, false) // Don't requeue
+					d.Nack(false, false)
 					continue
 				}
 
 				if err := w.ProcessPaymentIntent(ctx, msg); err != nil {
 					w.logger.Error("Failed to process payment intent", zap.Error(err), zap.Any("message", msg))
-					d.Nack(false, true) // Requeue for retry
+					d.Nack(false, true)
 					continue
 				}
 
@@ -143,7 +141,6 @@ func (w *Worker) Stop() error {
 func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntentMessage) error {
 	w.logger.Info("Processing payment intent", zap.String("payment_intent_id", message.PaymentIntentID))
 
-	// First get the payment intent to obtain its UUID
 	w.logger.Info("Getting payment intent by string ID", zap.String("payment_intent_id", message.PaymentIntentID))
 	paymentIntentInfo, err := w.queries.GetPaymentIntent(ctx, message.PaymentIntentID)
 	if err != nil {
@@ -157,7 +154,6 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 		zap.String("status", string(paymentIntentInfo.Status.PaymentStatus)),
 		zap.Bool("status_valid", paymentIntentInfo.Status.Valid))
 
-	// Check current status and decide what to do
 	if paymentIntentInfo.Status.Valid && paymentIntentInfo.Status.PaymentStatus == db.PaymentStatusProcessing {
 		w.logger.Info("Payment intent already being processed, stopping execution",
 			zap.String("payment_intent_id", message.PaymentIntentID))
@@ -171,14 +167,13 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 		return nil
 	}
 
-	// Status is pending, change to processing and continue
 	w.logger.Info("Payment intent is pending, changing to processing and continuing",
 		zap.String("payment_intent_id", message.PaymentIntentID))
 
 	_, err = w.queries.UpdatePaymentIntentStatus(ctx, &db.UpdatePaymentIntentStatusParams{
 		ID:       paymentIntentInfo.ID,
 		Status:   db.NullPaymentStatus{PaymentStatus: db.PaymentStatusProcessing, Valid: true},
-		Status_2: db.NullPaymentStatus{PaymentStatus: db.PaymentStatusPending, Valid: true}, // Current status to check
+		Status_2: db.NullPaymentStatus{PaymentStatus: db.PaymentStatusPending, Valid: true},
 	})
 	if err != nil {
 		w.logger.Error("Failed to update payment intent to processing status", zap.String("payment_intent_id", message.PaymentIntentID), zap.Error(err))
@@ -190,7 +185,6 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 	w.logger.Info("Creating payment transaction",
 		zap.String("payment_intent_id", message.PaymentIntentID))
 
-	// Generate third party reference and select payment method
 	thirdPartyRef := generateThirdPartyReference()
 	selectedPaymentMethod := selectRandomPaymentMethod()
 	accountNumber := generateAccountNumber(selectedPaymentMethod)
@@ -203,14 +197,13 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 	amountFloat, _ := strconv.ParseFloat(paymentIntentInfo.Amount, 64)
 	feeAmount := fmt.Sprintf("%.2f", amountFloat*0.01) // 1% fee
 
-	// Create payment transaction
 	transaction, err := w.queries.CreatePaymentTransaction(ctx, &db.CreatePaymentTransactionParams{
-		PaymentIntentID: paymentIntentInfo.PaymentIntentID, // Custom payment intent ID (PI-XXXX)
-		MerchantID:      paymentIntentInfo.MerchantID,      // Custom merchant ID (CASM-XXXX)
+		PaymentIntentID: paymentIntentInfo.PaymentIntentID,
+		MerchantID:      paymentIntentInfo.MerchantID,
 		Amount:          paymentIntentInfo.Amount,
 		Currency:        db.CurrencyType(paymentIntentInfo.Currency),
-		PaymentMethod:   db.NullPaymentMethodType{PaymentMethodType: selectedPaymentMethod, Valid: true}, // Randomly selected method
-		FeeAmount:       sql.NullString{String: feeAmount, Valid: true},                                  // 1% fee
+		PaymentMethod:   db.NullPaymentMethodType{PaymentMethodType: selectedPaymentMethod, Valid: true},
+		FeeAmount:       sql.NullString{String: feeAmount, Valid: true},
 		AccountNumber:   sql.NullString{String: accountNumber, Valid: true},
 	})
 	if err != nil {
@@ -218,7 +211,6 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 		return fmt.Errorf("failed to create payment transaction: %w", err)
 	}
 
-	// Log the created payment transaction details
 	w.logger.Info("=== PAYMENT TRANSACTION CREATED ===",
 		zap.String("transaction_id", transaction.ID.String()),
 		zap.String("payment_intent_id", transaction.PaymentIntentID),
@@ -230,14 +222,12 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 		zap.String("account_number", transaction.AccountNumber.String),
 		zap.String("status", string(transaction.Status.TransactionStatus)))
 
-	// Get merchant UUID from custom merchant_id for balance operations
 	merchant, err := w.queries.GetMerchantByMerchantID(ctx, paymentIntentInfo.MerchantID)
 	if err != nil {
 		w.logger.Error("Failed to get merchant UUID", zap.String("custom_merchant_id", paymentIntentInfo.MerchantID), zap.Error(err))
 		return fmt.Errorf("failed to get merchant UUID: %w", err)
 	}
 
-	// Get and log merchant balance before update
 	merchantBalanceBefore, err := w.queries.GetMerchantBalance(ctx, &db.GetMerchantBalanceParams{
 		MerchantID: merchant.ID,
 		Currency:   db.CurrencyType(paymentIntentInfo.Currency),
@@ -257,34 +247,31 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 		zap.String("payment_transaction_id", transaction.ID.String()),
 		zap.String("third_party_ref", thirdPartyRef))
 
-	// Update payment transaction to success
 	_, err = w.queries.UpdatePaymentTransactionStatus(ctx, &db.UpdatePaymentTransactionStatusParams{
 		ID:                  transaction.ID,
 		Status:              db.NullTransactionStatus{TransactionStatus: db.TransactionStatusSuccess, Valid: true},
 		ThirdPartyReference: sql.NullString{String: thirdPartyRef, Valid: true},
-		Status_2:            db.NullTransactionStatus{TransactionStatus: db.TransactionStatusPending, Valid: true}, // Current status to check
+		Status_2:            db.NullTransactionStatus{TransactionStatus: db.TransactionStatusPending, Valid: true},
 	})
 	if err != nil {
 		w.logger.Error("Failed to update payment transaction status", zap.Error(err))
 		return fmt.Errorf("failed to update payment transaction status: %w", err)
 	}
 
-	// Update payment intent status to success
 	_, err = w.queries.UpdatePaymentIntentStatus(ctx, &db.UpdatePaymentIntentStatusParams{
 		ID:       paymentIntentInfo.ID,
 		Status:   db.NullPaymentStatus{PaymentStatus: db.PaymentStatusSuccess, Valid: true},
-		Status_2: db.NullPaymentStatus{PaymentStatus: db.PaymentStatusProcessing, Valid: true}, // Current status to check
+		Status_2: db.NullPaymentStatus{PaymentStatus: db.PaymentStatusProcessing, Valid: true},
 	})
 	if err != nil {
 		w.logger.Error("Failed to update payment intent status", zap.Error(err))
 		return fmt.Errorf("failed to update payment intent status: %w", err)
 	}
 
-	// Calculate amounts
 	amountFloat, _ = strconv.ParseFloat(paymentIntentInfo.Amount, 64)
 	feeFloat, _ := strconv.ParseFloat(feeAmount, 64)
-	depositAmount := amountFloat                 // Same as transaction amount
-	netBalanceAmount := depositAmount - feeFloat // Amount credited to merchant after fee
+	depositAmount := amountFloat
+	netBalanceAmount := depositAmount - feeFloat
 	depositAmountStr := fmt.Sprintf("%.2f", depositAmount)
 	netBalanceStr := fmt.Sprintf("%.2f", netBalanceAmount)
 
@@ -296,7 +283,6 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 		zap.String("net_balance_credit", netBalanceStr),
 		zap.String("currency", string(paymentIntentInfo.Currency)))
 
-	// Update merchant balance (available_balance = deposit - fee, total_deposit = deposit, transaction_count++)
 	w.logger.Info("=== MERCHANT BALANCE UPDATE START ===",
 		zap.String("merchant_uuid", merchant.ID.String()),
 		zap.String("custom_merchant_id", paymentIntentInfo.MerchantID),
@@ -306,10 +292,10 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 		zap.String("balance_after_fee", netBalanceStr))
 
 	merchantBalance, err := w.queries.IncrementMerchantBalance(ctx, &db.IncrementMerchantBalanceParams{
-		MerchantID: merchant.ID, // UUID for merchant_balances table
+		MerchantID: merchant.ID,
 		Currency:   db.CurrencyType(paymentIntentInfo.Currency),
-		Column3:    depositAmountStr, // Deposit amount (full transaction amount)
-		Column4:    feeAmount,        // Fee amount to deduct from available balance
+		Column3:    depositAmountStr,
+		Column4:    feeAmount,
 	})
 
 	if err != nil {
@@ -318,8 +304,6 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 			zap.String("currency", string(paymentIntentInfo.Currency)),
 			zap.String("deposit_amount", depositAmountStr),
 			zap.Error(err))
-		// Note: We don't return error here as the payment was successful,
-		// but we should log this for manual reconciliation
 	} else {
 		w.logger.Info("=== MERCHANT BALANCE UPDATE SUCCESSFUL ===",
 			zap.String("merchant_id", paymentIntentInfo.MerchantID),
@@ -328,6 +312,17 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 			zap.String("new_total_deposit", merchantBalance.TotalDeposit.String),
 			zap.Int32("new_transaction_count", merchantBalance.TotalTransactionCount.Int32),
 			zap.String("deposit_amount", depositAmountStr))
+
+		if err := w.sendCallback(paymentIntentInfo, transaction, thirdPartyRef, feeAmount, depositAmount); err != nil {
+			w.logger.Warn("Failed to send callback to merchant",
+				zap.String("payment_intent_id", message.PaymentIntentID),
+				zap.String("callback_url", paymentIntentInfo.CallbackUrl),
+				zap.Error(err))
+		} else {
+			w.logger.Info("Callback sent successfully to merchant",
+				zap.String("payment_intent_id", message.PaymentIntentID),
+				zap.String("callback_url", paymentIntentInfo.CallbackUrl))
+		}
 	}
 
 	w.logger.Info("Payment processing completed successfully",
@@ -337,4 +332,44 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 		zap.String("merchant_deposit", depositAmountStr))
 
 	return nil
+}
+
+func (w *Worker) sendCallback(paymentIntentInfo *db.GetPaymentIntentRow, transaction *db.PaymentTransaction, thirdPartyRef, feeAmount string, depositAmount float64) error {
+	if paymentIntentInfo.CallbackUrl == "" {
+		w.logger.Info("No callback URL provided, skipping callback",
+			zap.String("payment_intent_id", paymentIntentInfo.PaymentIntentID))
+		return nil
+	}
+
+	var metadata map[string]interface{}
+	if paymentIntentInfo.Metadata.Valid {
+		if err := json.Unmarshal(paymentIntentInfo.Metadata.RawMessage, &metadata); err != nil {
+			w.logger.Warn("Failed to parse payment intent metadata for callback",
+				zap.String("payment_intent_id", paymentIntentInfo.PaymentIntentID),
+				zap.Error(err))
+			metadata = make(map[string]interface{})
+		}
+	}
+
+	processedAt := ""
+	if transaction.ProcessedAt.Valid {
+		processedAt = transaction.ProcessedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+	}
+
+	callbackReq := callback.CallbackRequest{
+		PaymentIntentID:     paymentIntentInfo.PaymentIntentID,
+		MerchantID:          paymentIntentInfo.MerchantID,
+		Amount:              depositAmount,
+		Currency:            string(paymentIntentInfo.Currency),
+		Status:              "success",
+		AccountNumber:       transaction.AccountNumber.String,
+		PaymentMethod:       string(transaction.PaymentMethod.PaymentMethodType),
+		ThirdPartyReference: thirdPartyRef,
+		FeeAmount:           feeAmount,
+		ProcessedAt:         processedAt,
+		Nonce:               paymentIntentInfo.Nonce,
+		Metadata:            metadata,
+	}
+
+	return w.callbackSvc.SendCallback(paymentIntentInfo.CallbackUrl, callbackReq)
 }
