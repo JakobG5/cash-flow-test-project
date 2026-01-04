@@ -1,6 +1,7 @@
 package rabbitmqmanager
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"cash-flow-financial/internal/models"
@@ -52,5 +53,45 @@ func (rm *RabbitMQManager) HealthCheck() error {
 	if rm.Connection == nil || rm.Connection.IsClosed() {
 		return fmt.Errorf("RabbitMQ connection is closed")
 	}
+	return nil
+}
+
+func (rm *RabbitMQManager) PublishPaymentIntent(message PaymentMessage) error {
+	// Declare exchange
+	err := rm.Channel.ExchangeDeclare(
+		"payment_intents_exchange", // name
+		"topic",                    // type
+		true,                       // durable
+		false,                      // auto-deleted
+		false,                      // internal
+		false,                      // no-wait
+		nil,                        // arguments
+	)
+	if err != nil {
+		return fmt.Errorf("failed to declare exchange: %w", err)
+	}
+
+	// Serialize message
+	body, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message: %w", err)
+	}
+
+	// Publish message
+	err = rm.Channel.Publish(
+		"payment_intents_exchange", // exchange
+		"payment.intent.created",   // routing key
+		false,                      // mandatory
+		false,                      // immediate
+		amqp.Publishing{
+			ContentType:  "application/json",
+			Body:         body,
+			DeliveryMode: amqp.Persistent, // Make message persistent
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to publish message: %w", err)
+	}
+
 	return nil
 }

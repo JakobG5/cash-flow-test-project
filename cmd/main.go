@@ -15,6 +15,7 @@ import (
 	checkoutservice "cash-flow-financial/internal/services/checkout-service"
 	transactionservice "cash-flow-financial/internal/services/transaction-service"
 	"cash-flow-financial/server"
+	"cash-flow-financial/worker"
 
 	"go.uber.org/zap"
 )
@@ -45,10 +46,18 @@ func main() {
 	accountService := accountservice.NewAccountService(queries, logger, cfg)
 	transactionService := transactionservice.NewTransactionService(queries, logger)
 
+	// Initialize worker
+	paymentWorker := worker.NewWorker(queries, rabbitManager, logger)
+
 	srv := server.NewServer(cfg, logger, checkoutService, accountService, transactionService, dbManager, rabbitManager)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+
+	// Start the payment worker
+	if err := paymentWorker.Start(ctx); err != nil {
+		logger.Fatal("Worker failed to start", zap.Error(err))
+	}
 
 	if err := srv.Start(ctx); err != nil {
 		logger.Fatal("Server failed to start", zap.Error(err))

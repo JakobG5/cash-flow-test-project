@@ -266,6 +266,10 @@ const (
 	PaymentMethodTypeCard         PaymentMethodType = "card"
 	PaymentMethodTypeBankTransfer PaymentMethodType = "bank_transfer"
 	PaymentMethodTypeMobileMoney  PaymentMethodType = "mobile_money"
+	PaymentMethodTypeCbe          PaymentMethodType = "cbe"
+	PaymentMethodTypeMpesa        PaymentMethodType = "mpesa"
+	PaymentMethodTypeTelebirr     PaymentMethodType = "telebirr"
+	PaymentMethodTypeAwash        PaymentMethodType = "awash"
 )
 
 func (e *PaymentMethodType) Scan(src interface{}) error {
@@ -307,7 +311,11 @@ func (e PaymentMethodType) Valid() bool {
 	switch e {
 	case PaymentMethodTypeCard,
 		PaymentMethodTypeBankTransfer,
-		PaymentMethodTypeMobileMoney:
+		PaymentMethodTypeMobileMoney,
+		PaymentMethodTypeCbe,
+		PaymentMethodTypeMpesa,
+		PaymentMethodTypeTelebirr,
+		PaymentMethodTypeAwash:
 		return true
 	}
 	return false
@@ -318,6 +326,10 @@ func AllPaymentMethodTypeValues() []PaymentMethodType {
 		PaymentMethodTypeCard,
 		PaymentMethodTypeBankTransfer,
 		PaymentMethodTypeMobileMoney,
+		PaymentMethodTypeCbe,
+		PaymentMethodTypeMpesa,
+		PaymentMethodTypeTelebirr,
+		PaymentMethodTypeAwash,
 	}
 }
 
@@ -470,19 +482,19 @@ type MerchantApiKey struct {
 }
 
 type MerchantBalance struct {
-	ID               uuid.UUID      `db:"id" json:"id"`
-	MerchantID       uuid.UUID      `db:"merchant_id" json:"merchant_id"`
-	Currency         CurrencyType   `db:"currency" json:"currency"`
-	AvailableBalance sql.NullString `db:"available_balance" json:"available_balance"`
-	PendingBalance   sql.NullString `db:"pending_balance" json:"pending_balance"`
-	TotalProcessed   sql.NullString `db:"total_processed" json:"total_processed"`
-	LastUpdated      sql.NullTime   `db:"last_updated" json:"last_updated"`
+	ID                    uuid.UUID      `db:"id" json:"id"`
+	MerchantID            uuid.UUID      `db:"merchant_id" json:"merchant_id"`
+	Currency              CurrencyType   `db:"currency" json:"currency"`
+	AvailableBalance      sql.NullString `db:"available_balance" json:"available_balance"`
+	TotalDeposit          sql.NullString `db:"total_deposit" json:"total_deposit"`
+	TotalTransactionCount sql.NullInt32  `db:"total_transaction_count" json:"total_transaction_count"`
+	LastUpdated           sql.NullTime   `db:"last_updated" json:"last_updated"`
 }
 
 type PaymentIntent struct {
 	ID              uuid.UUID             `db:"id" json:"id"`
 	PaymentIntentID string                `db:"payment_intent_id" json:"payment_intent_id"`
-	MerchantID      uuid.UUID             `db:"merchant_id" json:"merchant_id"`
+	MerchantID      string                `db:"merchant_id" json:"merchant_id"`
 	Amount          string                `db:"amount" json:"amount"`
 	Currency        string                `db:"currency" json:"currency"`
 	Status          NullPaymentStatus     `db:"status" json:"status"`
@@ -497,15 +509,15 @@ type PaymentIntent struct {
 
 type PaymentTransaction struct {
 	ID                  uuid.UUID             `db:"id" json:"id"`
-	TransactionID       string                `db:"transaction_id" json:"transaction_id"`
-	PaymentIntentID     uuid.UUID             `db:"payment_intent_id" json:"payment_intent_id"`
-	MerchantID          uuid.UUID             `db:"merchant_id" json:"merchant_id"`
+	PaymentIntentID     string                `db:"payment_intent_id" json:"payment_intent_id"`
+	MerchantID          string                `db:"merchant_id" json:"merchant_id"`
 	Amount              string                `db:"amount" json:"amount"`
 	Currency            CurrencyType          `db:"currency" json:"currency"`
 	Status              NullTransactionStatus `db:"status" json:"status"`
 	ThirdPartyReference sql.NullString        `db:"third_party_reference" json:"third_party_reference"`
 	PaymentMethod       NullPaymentMethodType `db:"payment_method" json:"payment_method"`
 	FeeAmount           sql.NullString        `db:"fee_amount" json:"fee_amount"`
+	AccountNumber       sql.NullString        `db:"account_number" json:"account_number"`
 	ProcessedAt         sql.NullTime          `db:"processed_at" json:"processed_at"`
 	CreatedAt           sql.NullTime          `db:"created_at" json:"created_at"`
 	UpdatedAt           sql.NullTime          `db:"updated_at" json:"updated_at"`

@@ -15,7 +15,7 @@ import (
 const createMerchantBalance = `-- name: CreateMerchantBalance :one
 INSERT INTO merchant_balances (merchant_id, currency)
 VALUES ($1, $2)
-RETURNING id, merchant_id, currency, available_balance, pending_balance, total_processed, last_updated
+RETURNING id, merchant_id, currency, available_balance, total_deposit, total_transaction_count, last_updated
 `
 
 type CreateMerchantBalanceParams struct {
@@ -31,15 +31,15 @@ func (q *Queries) CreateMerchantBalance(ctx context.Context, arg *CreateMerchant
 		&i.MerchantID,
 		&i.Currency,
 		&i.AvailableBalance,
-		&i.PendingBalance,
-		&i.TotalProcessed,
+		&i.TotalDeposit,
+		&i.TotalTransactionCount,
 		&i.LastUpdated,
 	)
 	return &i, err
 }
 
 const getMerchantBalance = `-- name: GetMerchantBalance :one
-SELECT id, merchant_id, currency, available_balance, pending_balance, total_processed, last_updated
+SELECT id, merchant_id, currency, available_balance, total_deposit, total_transaction_count, last_updated
 FROM merchant_balances
 WHERE merchant_id = $1 AND currency = $2
 `
@@ -57,15 +57,15 @@ func (q *Queries) GetMerchantBalance(ctx context.Context, arg *GetMerchantBalanc
 		&i.MerchantID,
 		&i.Currency,
 		&i.AvailableBalance,
-		&i.PendingBalance,
-		&i.TotalProcessed,
+		&i.TotalDeposit,
+		&i.TotalTransactionCount,
 		&i.LastUpdated,
 	)
 	return &i, err
 }
 
 const getMerchantBalances = `-- name: GetMerchantBalances :many
-SELECT id, merchant_id, currency, available_balance, pending_balance, total_processed, last_updated
+SELECT id, merchant_id, currency, available_balance, total_deposit, total_transaction_count, last_updated
 FROM merchant_balances
 WHERE merchant_id = $1
 `
@@ -84,8 +84,8 @@ func (q *Queries) GetMerchantBalances(ctx context.Context, merchantID uuid.UUID)
 			&i.MerchantID,
 			&i.Currency,
 			&i.AvailableBalance,
-			&i.PendingBalance,
-			&i.TotalProcessed,
+			&i.TotalDeposit,
+			&i.TotalTransactionCount,
 			&i.LastUpdated,
 		); err != nil {
 			return nil, err
@@ -101,28 +101,31 @@ func (q *Queries) GetMerchantBalances(ctx context.Context, merchantID uuid.UUID)
 	return items, nil
 }
 
-const updateMerchantBalance = `-- name: UpdateMerchantBalance :one
-UPDATE merchant_balances
-SET available_balance = $3, pending_balance = $4, total_processed = $5, last_updated = NOW()
-WHERE merchant_id = $1 AND currency = $2
-RETURNING id, merchant_id, currency, available_balance, pending_balance, total_processed, last_updated
+const incrementMerchantBalance = `-- name: IncrementMerchantBalance :one
+INSERT INTO merchant_balances (merchant_id, currency, available_balance, total_deposit, total_transaction_count)
+VALUES ($1, $2, $3::decimal - $4::decimal, $3::decimal, 1)
+ON CONFLICT (merchant_id, currency)
+DO UPDATE SET
+    available_balance = merchant_balances.available_balance + $3::decimal - $4::decimal,
+    total_deposit = merchant_balances.total_deposit + $3::decimal,
+    total_transaction_count = merchant_balances.total_transaction_count + 1,
+    last_updated = NOW()
+RETURNING id, merchant_id, currency, available_balance, total_deposit, total_transaction_count, last_updated
 `
 
-type UpdateMerchantBalanceParams struct {
-	MerchantID       uuid.UUID      `db:"merchant_id" json:"merchant_id"`
-	Currency         CurrencyType   `db:"currency" json:"currency"`
-	AvailableBalance sql.NullString `db:"available_balance" json:"available_balance"`
-	PendingBalance   sql.NullString `db:"pending_balance" json:"pending_balance"`
-	TotalProcessed   sql.NullString `db:"total_processed" json:"total_processed"`
+type IncrementMerchantBalanceParams struct {
+	MerchantID uuid.UUID    `db:"merchant_id" json:"merchant_id"`
+	Currency   CurrencyType `db:"currency" json:"currency"`
+	Column3    string       `db:"column_3" json:"column_3"`
+	Column4    string       `db:"column_4" json:"column_4"`
 }
 
-func (q *Queries) UpdateMerchantBalance(ctx context.Context, arg *UpdateMerchantBalanceParams) (*MerchantBalance, error) {
-	row := q.db.QueryRowContext(ctx, updateMerchantBalance,
+func (q *Queries) IncrementMerchantBalance(ctx context.Context, arg *IncrementMerchantBalanceParams) (*MerchantBalance, error) {
+	row := q.db.QueryRowContext(ctx, incrementMerchantBalance,
 		arg.MerchantID,
 		arg.Currency,
-		arg.AvailableBalance,
-		arg.PendingBalance,
-		arg.TotalProcessed,
+		arg.Column3,
+		arg.Column4,
 	)
 	var i MerchantBalance
 	err := row.Scan(
@@ -130,8 +133,44 @@ func (q *Queries) UpdateMerchantBalance(ctx context.Context, arg *UpdateMerchant
 		&i.MerchantID,
 		&i.Currency,
 		&i.AvailableBalance,
-		&i.PendingBalance,
-		&i.TotalProcessed,
+		&i.TotalDeposit,
+		&i.TotalTransactionCount,
+		&i.LastUpdated,
+	)
+	return &i, err
+}
+
+const updateMerchantBalance = `-- name: UpdateMerchantBalance :one
+UPDATE merchant_balances
+SET available_balance = $3, total_deposit = $4, total_transaction_count = $5, last_updated = NOW()
+WHERE merchant_id = $1 AND currency = $2
+RETURNING id, merchant_id, currency, available_balance, total_deposit, total_transaction_count, last_updated
+`
+
+type UpdateMerchantBalanceParams struct {
+	MerchantID            uuid.UUID      `db:"merchant_id" json:"merchant_id"`
+	Currency              CurrencyType   `db:"currency" json:"currency"`
+	AvailableBalance      sql.NullString `db:"available_balance" json:"available_balance"`
+	TotalDeposit          sql.NullString `db:"total_deposit" json:"total_deposit"`
+	TotalTransactionCount sql.NullInt32  `db:"total_transaction_count" json:"total_transaction_count"`
+}
+
+func (q *Queries) UpdateMerchantBalance(ctx context.Context, arg *UpdateMerchantBalanceParams) (*MerchantBalance, error) {
+	row := q.db.QueryRowContext(ctx, updateMerchantBalance,
+		arg.MerchantID,
+		arg.Currency,
+		arg.AvailableBalance,
+		arg.TotalDeposit,
+		arg.TotalTransactionCount,
+	)
+	var i MerchantBalance
+	err := row.Scan(
+		&i.ID,
+		&i.MerchantID,
+		&i.Currency,
+		&i.AvailableBalance,
+		&i.TotalDeposit,
+		&i.TotalTransactionCount,
 		&i.LastUpdated,
 	)
 	return &i, err

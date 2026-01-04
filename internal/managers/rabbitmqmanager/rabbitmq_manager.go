@@ -11,4 +11,5 @@ type PaymentMessage struct {
 type IRabbitMQManager interface {
 	Close() error
 	HealthCheck() error
+	PublishPaymentIntent(message PaymentMessage) error
 }

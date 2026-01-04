@@ -3,7 +3,7 @@ CREATE TYPE api_key_status AS ENUM ('active', 'inactive', 'expired');
 CREATE TYPE currency_type AS ENUM ('ETB', 'USD');
 CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'success', 'failed', 'cancelled');
 CREATE TYPE transaction_status AS ENUM ('pending', 'success', 'failed');
-CREATE TYPE payment_method_type AS ENUM ('card', 'bank_transfer', 'mobile_money');
+CREATE TYPE payment_method_type AS ENUM ('card', 'bank_transfer', 'mobile_money', 'cbe', 'mpesa', 'telebirr', 'awash');
 CREATE TYPE event_type AS ENUM ('created', 'processing', 'completed', 'failed', 'cancelled');
 
 CREATE TABLE merchants (
@@ -32,7 +32,7 @@ CREATE TABLE merchant_api_keys (
 CREATE TABLE payment_intents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     payment_intent_id VARCHAR(20) UNIQUE NOT NULL,
-    merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    merchant_id VARCHAR(50) NOT NULL,        -- Custom merchant ID (CASM-XXXX)
     amount DECIMAL(15,2) NOT NULL,
     currency VARCHAR(3) NOT NULL,
     status payment_status DEFAULT 'pending',
@@ -43,35 +43,32 @@ CREATE TABLE payment_intents (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 minutes'),
-    CONSTRAINT fk_payment_intents_merchant FOREIGN KEY (merchant_id) REFERENCES merchants(id),
     CONSTRAINT unique_merchant_nonce UNIQUE (merchant_id, nonce)
 );
 
 CREATE TABLE payment_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    transaction_id VARCHAR(255) UNIQUE NOT NULL,
-    payment_intent_id UUID NOT NULL REFERENCES payment_intents(id),
-    merchant_id UUID NOT NULL REFERENCES merchants(id),
+    payment_intent_id VARCHAR(255) NOT NULL, -- Custom payment intent ID (PI-XXXX) or UUID
+    merchant_id VARCHAR(50) NOT NULL,        -- Custom merchant ID (CASM-XXXX)
     amount DECIMAL(15,2) NOT NULL CHECK (amount > 0),
     currency currency_type NOT NULL,
     status transaction_status DEFAULT 'pending',
     third_party_reference VARCHAR(255) UNIQUE,
     payment_method payment_method_type,
     fee_amount DECIMAL(10,2) DEFAULT 0 CHECK (fee_amount >= 0),
+    account_number VARCHAR(50),
     processed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT fk_payment_transactions_intent FOREIGN KEY (payment_intent_id) REFERENCES payment_intents(id),
-    CONSTRAINT fk_payment_transactions_merchant FOREIGN KEY (merchant_id) REFERENCES merchants(id)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE merchant_balances (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     merchant_id UUID NOT NULL REFERENCES merchants(id),
     currency currency_type NOT NULL,
-    available_balance DECIMAL(15,2) DEFAULT 0,
-    pending_balance DECIMAL(15,2) DEFAULT 0,
-    total_processed DECIMAL(15,2) DEFAULT 0,
+    available_balance DECIMAL(15,2) DEFAULT 0 CHECK (available_balance >= 0),
+    total_deposit DECIMAL(15,2) DEFAULT 0 CHECK (total_deposit >= 0),
+    total_transaction_count INTEGER DEFAULT 0 CHECK (total_transaction_count >= 0),
     last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     CONSTRAINT fk_merchant_balances_merchant FOREIGN KEY (merchant_id) REFERENCES merchants(id),
     UNIQUE(merchant_id, currency)
