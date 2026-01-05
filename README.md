@@ -77,6 +77,48 @@ Content-Type: application/json
 GET /cashflow_test/v1/account/merchant?merchant_id=CASM-ABC123
 ```
 
+**Response:**
+```json
+{
+  "status": true,
+  "merchant_id": "CASM-ABC123",
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "merchant_status": "active",
+  "api_key": "cash_test_abc123def456",
+  "api_key_status": "active",
+  "created_at": "2024-01-05T10:30:00Z",
+  "api_key_created": "2024-01-05T10:30:00Z",
+  "balances": [
+    {
+      "currency": "ETB",
+      "available_balance": "99.49",
+      "total_deposit": "100.50",
+      "total_transaction_count": 1,
+      "last_updated": "2024-01-05T10:35:00Z"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "d49a7dd0-95b9-4636-acf6-d06b87a8e525",
+      "payment_intent_id": "PI-ABC123",
+      "merchant_id": "CASM-ABC123",
+      "amount": "100.50",
+      "currency": "ETB",
+      "status": "success",
+      "third_party_reference": "TP123456789",
+      "payment_method": "card",
+      "fee_amount": "1.01",
+      "account_number": "1234567890",
+      "processed_at": "2024-01-05T10:35:00Z",
+      "created_at": "2024-01-05T10:30:00Z",
+      "updated_at": "2024-01-05T10:35:00Z"
+    }
+  ],
+  "message": "Merchant details retrieved successfully"
+}
+```
+
 ### Payment Processing
 
 #### Create Payment Intent
@@ -108,10 +150,6 @@ Content-Type: application/json
 }
 ```
 
-#### Get Transaction Status
-```http
-GET /cashflow_test/v1/transaction/get-payment-status?payment_intent_id=PI-ABC123
-```
 
 ### Health Check
 ```http
