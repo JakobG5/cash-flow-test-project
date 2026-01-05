@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cash-flow-financial/docs"
 	"cash-flow-financial/internal/managers/dbmanager"
 	logger "cash-flow-financial/internal/managers/loggermanager"
 	"cash-flow-financial/internal/managers/rabbitmqmanager"
@@ -29,11 +30,24 @@ type Server struct {
 	logger              *logger.Logger
 }
 
+// @title Cash Flow Payment Gateway API
+// @version 1.0
+// @description A comprehensive payment gateway API for merchants to process payments. Features include merchant account management, payment intent creation, transaction processing with automatic fee deduction (1%), and callback notifications.
+// @contact.name API Support
+// @contact.url https://github.com/your-org/cash-flow-gateway
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+// @host localhost:3074
+// @BasePath /cashflow_test/v1
+// @schemes http
 func NewServer(cfg *models.Config, log *logger.Logger, checkoutSvc checkoutservice.ICheckoutService, accountSvc accountservice.IAccountService, transactionSvc transactionservice.ITransactionService, dbMgr dbmanager.IDBManager, rabbitMgr rabbitmqmanager.IRabbitMQManager) *Server {
 	e := echo.New()
 
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
+
+	// Swagger docs
+	docs.SwaggerInfo.Host = fmt.Sprintf("localhost:%s", cfg.Server.Port)
 
 	server := &Server{
 		IDBManager:          dbMgr,

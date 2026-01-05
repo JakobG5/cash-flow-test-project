@@ -1,0 +1,429 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "A comprehensive payment gateway API for merchants to process payments. Features include merchant account management, payment intent creation, transaction processing with automatic fee deduction (1%), and callback notifications.",
+        "title": "Cash Flow Payment Gateway API",
+        "contact": {
+            "name": "API Support",
+            "url": "https://github.com/your-org/cash-flow-gateway"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:3074",
+    "basePath": "/cashflow_test/v1",
+    "paths": {
+        "/account/create-merchant": {
+            "post": {
+                "description": "Creates a new merchant account with a unique merchant ID and API key for payment processing",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Create Merchant Account",
+                "parameters": [
+                    {
+                        "description": "Merchant creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateMerchantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Merchant created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateMerchantResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error or duplicate email",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/merchant": {
+            "get": {
+                "description": "Retrieves merchant information including balances across currencies and recent transactions",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Get Merchant Details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Merchant ID (e.g., CASM-ABC123)",
+                        "name": "merchant_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Merchant details retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.GetMerchantResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing merchant_id parameter",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Merchant not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/checkout/create-intent": {
+            "post": {
+                "description": "Creates a payment intent that will be processed asynchronously. The payment gateway charges 1% fee and only accepts ETB and USD currencies.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment"
+                ],
+                "summary": "Create Payment Intent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Merchant API Key",
+                        "name": "X-API-KEY",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Payment intent creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreatePaymentIntentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Payment intent created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.CreatePaymentIntentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid or missing API key",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.CreateMerchantRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "name"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "john.doe@example.com"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2,
+                    "example": "John Doe"
+                }
+            }
+        },
+        "models.CreateMerchantResponse": {
+            "type": "object",
+            "properties": {
+                "api_key": {
+                    "type": "string",
+                    "example": "cash_test_abc123def456"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "john.doe@example.com"
+                },
+                "merchant_id": {
+                    "type": "string",
+                    "example": "CASM-ABC123"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Merchant created successfully"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "status": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.CreatePaymentIntentRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "callback_url",
+                "currency",
+                "nonce"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "maximum": 100000,
+                    "example": 100.5
+                },
+                "callback_url": {
+                    "type": "string",
+                    "example": "https://example.com/callback"
+                },
+                "currency": {
+                    "type": "string",
+                    "enum": [
+                        "ETB",
+                        "USD"
+                    ],
+                    "example": "ETB"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Payment for order #123"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "nonce": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 16,
+                    "example": "unique_nonce_123456789"
+                }
+            }
+        },
+        "models.CreatePaymentIntentResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "example": 100.5
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-05T10:30:00Z"
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "ETB"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Payment for order #123"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "example": "2024-01-05T10:45:00Z"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Payment intent created successfully"
+                },
+                "payment_intent_id": {
+                    "type": "string",
+                    "example": "PI-ABC123"
+                },
+                "payment_status": {
+                    "type": "string",
+                    "example": "pending"
+                },
+                "status": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "error": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.GetMerchantResponse": {
+            "type": "object",
+            "properties": {
+                "api_key": {
+                    "type": "string"
+                },
+                "api_key_created": {
+                    "type": "string"
+                },
+                "api_key_status": {
+                    "type": "string"
+                },
+                "balances": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.MerchantBalance"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "merchant_id": {
+                    "type": "string"
+                },
+                "merchant_status": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "boolean"
+                },
+                "transactions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.MerchantTransaction"
+                    }
+                }
+            }
+        },
+        "models.MerchantBalance": {
+            "type": "object",
+            "properties": {
+                "available_balance": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "last_updated": {
+                    "type": "string"
+                },
+                "total_deposit": {
+                    "type": "string"
+                },
+                "total_transaction_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.MerchantTransaction": {
+            "type": "object",
+            "properties": {
+                "account_number": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "fee_amount": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "merchant_id": {
+                    "type": "string"
+                },
+                "payment_intent_id": {
+                    "type": "string"
+                },
+                "payment_method": {
+                    "type": "string"
+                },
+                "processed_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "third_party_reference": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

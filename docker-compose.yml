@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cashflow_postgres
+    environment:
+      POSTGRES_USER: cashflow_user
+      POSTGRES_PASSWORD: cashflow_pass
+      POSTGRES_DB: cashflow_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./internal/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cashflow_user -d cashflow_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cashflow_network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: cashflow_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5673:5672"   # AMQP port
+      - "15673:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - cashflow_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cashflow_app
+    ports:
+      - "3074:3074"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=cashflow_user
+      - DB_PASSWORD=cashflow_pass
+      - DB_NAME=cashflow_dev
+      - DB_SSL_MODE=disable
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_VHOST=/
+      - SERVER_PORT=3074
+    networks:
+      - cashflow_network
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+
+networks:
+  cashflow_network:
+    driver: bridge

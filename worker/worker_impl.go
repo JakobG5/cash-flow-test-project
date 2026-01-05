@@ -193,7 +193,6 @@ func (w *Worker) ProcessPaymentIntent(ctx context.Context, message PaymentIntent
 		zap.String("payment_method", string(selectedPaymentMethod)),
 		zap.String("account_number", accountNumber))
 
-	// Calculate fee (1% of amount)
 	amountFloat, _ := strconv.ParseFloat(paymentIntentInfo.Amount, 64)
 	feeAmount := fmt.Sprintf("%.2f", amountFloat*0.01) // 1% fee
 

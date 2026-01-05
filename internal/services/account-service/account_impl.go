@@ -119,7 +119,6 @@ func (as *AccountService) GetMerchantByID(merchantID string) (*models.GetMerchan
 	as.logger.Info("Stored secret_key (encrypted)", zap.String("db_secret_key", maskAPIKey(merchant.SecretKey)))
 	as.logger.Info("=== END RETRIEVAL DETAILS ===")
 
-	// Handle null status fields
 	merchantStatus := "unknown"
 	if merchant.Status.Valid {
 		merchantStatus = string(merchant.Status.MerchantStatus)
@@ -130,7 +129,6 @@ func (as *AccountService) GetMerchantByID(merchantID string) (*models.GetMerchan
 		apiKeyStatus = string(merchant.ApiKeyStatus.ApiKeyStatus)
 	}
 
-	// Handle null timestamp fields
 	createdAt := ""
 	if merchant.CreatedAt.Valid {
 		createdAt = merchant.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00")
@@ -147,11 +145,10 @@ func (as *AccountService) GetMerchantByID(merchantID string) (*models.GetMerchan
 		return nil, fmt.Errorf("failed to retrieve API key")
 	}
 
-	// Get merchant balances
 	balances, err := as.queries.GetMerchantBalances(context.Background(), merchant.ID)
 	if err != nil {
 		as.logger.Warn("Failed to get merchant balances", zap.String("merchant_id", merchantID), zap.Error(err))
-		// Don't fail the request, just log the warning
+
 	}
 
 	var merchantBalances []models.MerchantBalance

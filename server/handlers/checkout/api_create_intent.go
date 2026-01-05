@@ -10,6 +10,19 @@ import (
 	"go.uber.org/zap"
 )
 
+// CreateIntent creates a new payment intent for processing
+// @Summary Create Payment Intent
+// @Description Creates a payment intent that will be processed asynchronously. The payment gateway charges 1% fee and only accepts ETB and USD currencies.
+// @Tags Payment
+// @Accept json
+// @Produce json
+// @Param X-API-KEY header string true "Merchant API Key"
+// @Param request body models.CreatePaymentIntentRequest true "Payment intent creation request"
+// @Success 201 {object} models.CreatePaymentIntentResponse "Payment intent created successfully"
+// @Failure 400 {object} models.ErrorResponse "Validation error"
+// @Failure 401 {object} models.ErrorResponse "Invalid or missing API key"
+// @Failure 500 {object} models.ErrorResponse "Internal server error"
+// @Router /checkout/create-intent [post]
 func (h *CheckoutHandler) CreateIntent(c echo.Context) error {
 	h.logger.Info("CreateIntent called")
 

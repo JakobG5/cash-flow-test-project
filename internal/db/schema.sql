@@ -84,7 +84,7 @@ CREATE INDEX idx_payment_intents_payment_intent_id ON payment_intents(payment_in
 CREATE INDEX idx_payment_intents_nonce ON payment_intents(nonce);
 CREATE INDEX idx_payment_intents_status ON payment_intents(status);
 CREATE INDEX idx_payment_intents_expires_at ON payment_intents(expires_at);
-CREATE INDEX idx_payment_transactions_transaction_id ON payment_transactions(transaction_id);
+CREATE INDEX idx_payment_transactions_id ON payment_transactions(id);
 CREATE INDEX idx_payment_transactions_intent_id ON payment_transactions(payment_intent_id);
 CREATE INDEX idx_payment_transactions_merchant ON payment_transactions(merchant_id);
 CREATE INDEX idx_payment_transactions_status ON payment_transactions(status);

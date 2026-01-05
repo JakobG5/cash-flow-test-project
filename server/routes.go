@@ -3,17 +3,20 @@ package server
 import (
 	"cash-flow-financial/server/handlers/account"
 	"cash-flow-financial/server/handlers/checkout"
-	"cash-flow-financial/server/handlers/transaction"
 
 	"github.com/labstack/echo/v4"
+	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 func (s *Server) setupRoutes() {
+	// Health check
 	s.echo.GET("/health", s.healthCheck)
+
+	// Swagger documentation
+	s.echo.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	checkoutHandler := checkout.NewCheckoutHandler(s.ICHECKOUTSERVICE, s.IACCOUNTSERVICE, s.config, s.logger, s.IRabbitMQManager)
 	accountHandler := account.NewAccountHandler(s.IACCOUNTSERVICE, s.config, s.logger)
-	transactionHandler := transaction.NewTransactionHandler(s.ITRANSACTIONSERVICE, s.config, s.logger)
 
 	apiV1 := s.echo.Group("/cashflow_test/v1")
 
@@ -23,12 +26,8 @@ func (s *Server) setupRoutes() {
 	// Account routes
 	apiV1.POST("/account/create-merchant", accountHandler.CreateMerchantAPI)
 	apiV1.GET("/account/merchant", accountHandler.GetMerchantAPI) // Requires merchant_id query param, returns merchant details, balances, and transactions
-
-	// Transaction routes
-	apiV1.GET("/transaction/get-payment-status", transactionHandler.GetTransaction)
 }
 
-// healthCheck provides a simple health check endpoint
 func (s *Server) healthCheck(c echo.Context) error {
 	return c.JSON(200, map[string]interface{}{
 		"status":  "healthy",

@@ -11,6 +11,16 @@ import (
 	"go.uber.org/zap"
 )
 
+// CreateMerchantAPI creates a new merchant account and assigns an API key
+// @Summary Create Merchant Account
+// @Description Creates a new merchant account with a unique merchant ID and API key for payment processing
+// @Tags Merchant
+// @Accept json
+// @Produce json
+// @Param request body models.CreateMerchantRequest true "Merchant creation request"
+// @Success 201 {object} models.CreateMerchantResponse "Merchant created successfully"
+// @Failure 400 {object} models.ErrorResponse "Validation error or duplicate email"
+// @Router /account/create-merchant [post]
 func (h *AccountHandler) CreateMerchantAPI(c echo.Context) error {
 	h.logger.Info("CreateMerchantAPI called")
 
@@ -40,9 +50,9 @@ func (h *AccountHandler) CreateMerchantAPI(c echo.Context) error {
 			})
 		}
 		h.logger.Error("CreateMerchantAPI failed: internal error", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Status: false,
-			Error:  "internal server error",
+			Error:  "failed to create merchant account",
 		})
 	}
 

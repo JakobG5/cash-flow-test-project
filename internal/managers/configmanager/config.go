@@ -12,7 +12,7 @@ import (
 
 func Load() (*models.Config, error) {
 
-	viper.SetDefault("SERVER_PORT", "8080")
+	viper.SetDefault("SERVER_PORT", "3074")
 
 	viper.SetDefault("LOG_LEVEL", "info")
 

@@ -1,0 +1,299 @@
+basePath: /cashflow_test/v1
+definitions:
+  models.CreateMerchantRequest:
+    properties:
+      email:
+        example: john.doe@example.com
+        maxLength: 255
+        type: string
+      name:
+        example: John Doe
+        maxLength: 100
+        minLength: 2
+        type: string
+    required:
+    - email
+    - name
+    type: object
+  models.CreateMerchantResponse:
+    properties:
+      api_key:
+        example: cash_test_abc123def456
+        type: string
+      email:
+        example: john.doe@example.com
+        type: string
+      merchant_id:
+        example: CASM-ABC123
+        type: string
+      message:
+        example: Merchant created successfully
+        type: string
+      name:
+        example: John Doe
+        type: string
+      status:
+        example: true
+        type: boolean
+    type: object
+  models.CreatePaymentIntentRequest:
+    properties:
+      amount:
+        example: 100.5
+        maximum: 100000
+        type: number
+      callback_url:
+        example: https://example.com/callback
+        type: string
+      currency:
+        enum:
+        - ETB
+        - USD
+        example: ETB
+        type: string
+      description:
+        example: 'Payment for order #123'
+        maxLength: 500
+        type: string
+      metadata:
+        additionalProperties: true
+        type: object
+      nonce:
+        example: unique_nonce_123456789
+        maxLength: 64
+        minLength: 16
+        type: string
+    required:
+    - amount
+    - callback_url
+    - currency
+    - nonce
+    type: object
+  models.CreatePaymentIntentResponse:
+    properties:
+      amount:
+        example: 100.5
+        type: number
+      created_at:
+        example: "2024-01-05T10:30:00Z"
+        type: string
+      currency:
+        example: ETB
+        type: string
+      description:
+        example: 'Payment for order #123'
+        type: string
+      expires_at:
+        example: "2024-01-05T10:45:00Z"
+        type: string
+      message:
+        example: Payment intent created successfully
+        type: string
+      payment_intent_id:
+        example: PI-ABC123
+        type: string
+      payment_status:
+        example: pending
+        type: string
+      status:
+        example: true
+        type: boolean
+    type: object
+  models.ErrorResponse:
+    properties:
+      details:
+        items:
+          type: string
+        type: array
+      error:
+        type: string
+      status:
+        type: boolean
+    type: object
+  models.GetMerchantResponse:
+    properties:
+      api_key:
+        type: string
+      api_key_created:
+        type: string
+      api_key_status:
+        type: string
+      balances:
+        items:
+          $ref: '#/definitions/models.MerchantBalance'
+        type: array
+      created_at:
+        type: string
+      email:
+        type: string
+      merchant_id:
+        type: string
+      merchant_status:
+        type: string
+      message:
+        type: string
+      name:
+        type: string
+      status:
+        type: boolean
+      transactions:
+        items:
+          $ref: '#/definitions/models.MerchantTransaction'
+        type: array
+    type: object
+  models.MerchantBalance:
+    properties:
+      available_balance:
+        type: string
+      currency:
+        type: string
+      last_updated:
+        type: string
+      total_deposit:
+        type: string
+      total_transaction_count:
+        type: integer
+    type: object
+  models.MerchantTransaction:
+    properties:
+      account_number:
+        type: string
+      amount:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      fee_amount:
+        type: string
+      id:
+        type: string
+      merchant_id:
+        type: string
+      payment_intent_id:
+        type: string
+      payment_method:
+        type: string
+      processed_at:
+        type: string
+      status:
+        type: string
+      third_party_reference:
+        type: string
+      updated_at:
+        type: string
+    type: object
+host: localhost:3074
+info:
+  contact:
+    name: API Support
+    url: https://github.com/your-org/cash-flow-gateway
+  description: A comprehensive payment gateway API for merchants to process payments.
+    Features include merchant account management, payment intent creation, transaction
+    processing with automatic fee deduction (1%), and callback notifications.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Cash Flow Payment Gateway API
+  version: "1.0"
+paths:
+  /account/create-merchant:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new merchant account with a unique merchant ID and API
+        key for payment processing
+      parameters:
+      - description: Merchant creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateMerchantRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Merchant created successfully
+          schema:
+            $ref: '#/definitions/models.CreateMerchantResponse'
+        "400":
+          description: Validation error or duplicate email
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Create Merchant Account
+      tags:
+      - Merchant
+  /account/merchant:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves merchant information including balances across currencies
+        and recent transactions
+      parameters:
+      - description: Merchant ID (e.g., CASM-ABC123)
+        in: query
+        name: merchant_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Merchant details retrieved successfully
+          schema:
+            $ref: '#/definitions/models.GetMerchantResponse'
+        "400":
+          description: Missing merchant_id parameter
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Merchant not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get Merchant Details
+      tags:
+      - Merchant
+  /checkout/create-intent:
+    post:
+      consumes:
+      - application/json
+      description: Creates a payment intent that will be processed asynchronously.
+        The payment gateway charges 1% fee and only accepts ETB and USD currencies.
+      parameters:
+      - description: Merchant API Key
+        in: header
+        name: X-API-KEY
+        required: true
+        type: string
+      - description: Payment intent creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreatePaymentIntentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Payment intent created successfully
+          schema:
+            $ref: '#/definitions/models.CreatePaymentIntentResponse'
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Invalid or missing API key
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Create Payment Intent
+      tags:
+      - Payment
+schemes:
+- http
+swagger: "2.0"

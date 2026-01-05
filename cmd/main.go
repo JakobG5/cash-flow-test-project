@@ -18,6 +18,7 @@ import (
 	"cash-flow-financial/server"
 	"cash-flow-financial/worker"
 
+	_ "github.com/swaggo/echo-swagger"
 	"go.uber.org/zap"
 )
 
